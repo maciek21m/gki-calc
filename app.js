@@ -174,21 +174,62 @@ function buildChart(data){
   if(chart) chart.destroy();
   const datasets = [];
   if(showGKI.checked){
-    datasets.push({label:'GKI',data:data.map(d=>({x:new Date(d.timestamp),y:d.gki})),borderColor:'#fff',backgroundColor:'rgba(255,255,255,0.05)',tension:0.2});
+    datasets.push({
+      label:'GKI',
+      data:data.map(d=>({x:new Date(d.timestamp),y:d.gki})),
+      borderColor:'#fff',
+      backgroundColor:'rgba(255,255,255,0.05)',
+      tension:0.2,
+      yAxisID: 'y'
+    });
   }
   if(showGlucose.checked){
-    datasets.push({label:'Glucose (mg/dL)',data:data.map(d=>({x:new Date(d.timestamp),y: d.glucose_unit === 'mgdL' ? parseFloat(d.glucose) : (parseFloat(d.glucose)*18) })),borderColor:'#888',backgroundColor:'rgba(255,255,255,0.02)',tension:0.2});
+    datasets.push({
+      label:'Glucose (mg/dL)',
+      data:data.map(d=>({x:new Date(d.timestamp),y: d.glucose_unit === 'mgdL' ? parseFloat(d.glucose) : (parseFloat(d.glucose)*18) })),
+      borderColor:'#888',
+      backgroundColor:'rgba(255,255,255,0.02)',
+      tension:0.2,
+      yAxisID: 'y2'
+    });
   }
   if(showKetone.checked){
-    datasets.push({label:'Ketones (mmol/L)',data:data.map(d=>({x:new Date(d.timestamp),y:parseFloat(d.ketones) })),borderColor:'#aaa',backgroundColor:'rgba(255,255,255,0.02)',tension:0.2});
+    datasets.push({
+      label:'Ketones (mmol/L)',
+      data:data.map(d=>({x:new Date(d.timestamp),y:parseFloat(d.ketones) })),
+      borderColor:'#aaa',
+      backgroundColor:'rgba(255,255,255,0.02)',
+      tension:0.2,
+      yAxisID: 'y3'
+    });
   }
 
   chart = new Chart(chartCtx,{
     type:'line',
     data:{datasets},
     options:{
-      scales:{x:{type:'time',time:{unit:'day'},ticks:{color:'#bbb'}},y:{ticks:{color:'#bbb'}}},
-      plugins:{legend:{labels:{color:'#ddd'}}}
+      responsive:true,
+      scales:{
+        x:{type:'time',time:{unit:'day'},ticks:{color:'#bbb'}},
+        y:{position:'left',title:{display:true,text:'GKI'},ticks:{color:'#bbb'}},
+        y2:{position:'right',grid:{display:false},title:{display:true,text:'Glucose (mg/dL)'},ticks:{color:'#bbb'}},
+        y3:{position:'right',grid:{display:false},offset:true,title:{display:true,text:'Ketones (mmol/L)'},ticks:{color:'#bbb'}}
+      },
+      plugins:{
+        legend:{labels:{color:'#ddd'}},
+        tooltip:{
+          callbacks:{
+            label: function(context){
+              const label = context.dataset.label || '';
+              const y = context.parsed.y;
+              if(label.includes('GKI')) return `${label}: ${y}`;
+              if(label.includes('Glucose')) return `${label}: ${y} mg/dL`;
+              if(label.includes('Ketone')) return `${label}: ${y} mmol/L`;
+              return `${label}: ${y}`;
+            }
+          }
+        }
+      }
     }
   });
 }
