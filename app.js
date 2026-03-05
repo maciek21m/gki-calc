@@ -27,6 +27,17 @@ const exportCsv = document.getElementById('exportCsv');
 const shareBtn = document.getElementById('shareBtn');
 const clearAll = document.getElementById('clearAll');
 
+// Prevent form submit from reloading
+const calcForm = document.getElementById('calcForm');
+if(calcForm){
+  calcForm.addEventListener('submit', (e)=>{ e.preventDefault(); });
+}
+
+// Debounce helper to avoid excessive calculations while typing
+function debounce(fn, ms=300){
+  let t; return (...args)=>{ clearTimeout(t); t = setTimeout(()=>fn(...args), ms); };
+}
+
 // Chart
 let chart = null;
 const chartCtx = document.getElementById('gkiChart').getContext('2d');
@@ -101,6 +112,17 @@ function onCalculate(save=false){
 
 calcBtn.addEventListener('click', (e)=>{ e.preventDefault(); onCalculate(true); });
 justCalc.addEventListener('click', ()=>onCalculate(false));
+
+// Live calculation: recalculate on input changes and update result live
+const liveUpdate = debounce(()=>{
+  const form = readForm();
+  const gki = calculateGKI(form.glucose, form.glucose_unit, form.ketones);
+  showResult(gki);
+});
+
+glucose.addEventListener('input', liveUpdate);
+glucoseUnit.addEventListener('change', liveUpdate);
+ketones.addEventListener('input', liveUpdate);
 
 function renderRecords(){
   const list = loadRecords();
