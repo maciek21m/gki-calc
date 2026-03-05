@@ -1,13 +1,126 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="content-security-policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; frame-src 'self' https:; font-src 'self'; base-uri 'self'; manifest-src 'self'; connect-src 'self' blob: https: wss:; img-src 'self' data: blob: https:; media-src 'self' https:">
-    <link rel="manifest" href="/manifest.webmanifest">
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>GKI Ketosis Calculator</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#000000">
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <style>html,body,#app{height:100%;margin:0}</style>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="container">
+        <h1>GKI Ketosis Calculator</h1>
+        <a class="vibe" href="https://shakespeare.diy" target="_blank" rel="noreferrer">Vibed with Shakespeare</a>
+      </div>
+    </header>
+
+    <main class="container main">
+      <section class="card calc">
+        <h2>Calculate GKI</h2>
+        <form id="calcForm">
+          <div class="row">
+            <label>Blood Glucose</label>
+            <div class="input-row">
+              <input id="glucose" type="number" step="any" min="0" placeholder="e.g. 90" required>
+              <select id="glucoseUnit">
+                <option value="mgdL" selected>mg/dL</option>
+                <option value="mmolL">mmol/L</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="row">
+            <label>Blood Ketones (mmol/L)</label>
+            <input id="ketones" type="number" step="any" min="0" placeholder="e.g. 1.5" required>
+          </div>
+
+          <div class="row">
+            <label>Timestamp</label>
+            <div class="input-row">
+              <button type="button" id="nowBtn" class="muted">Use now</button>
+              <input id="timestamp" type="datetime-local" aria-label="Measurement date and time">
+            </div>
+          </div>
+
+          <div class="row">
+            <label>Note (optional)</label>
+            <textarea id="note" rows="2" placeholder="Add a note..."></textarea>
+          </div>
+
+          <div class="actions">
+            <button id="calcBtn" type="submit">Calculate & Save</button>
+            <button id="justCalc" type="button" class="outline">Calculate only</button>
+          </div>
+
+          <div id="result" class="result" aria-live="polite"></div>
+        </form>
+      </section>
+
+      <section class="card chart">
+        <h2>History & Chart</h2>
+        <div class="controls">
+          <label>Range:</label>
+          <select id="rangeSelect">
+            <option value="all">All</option>
+            <option value="7">Last 7 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="custom">Custom (weeks)</option>
+          </select>
+          <input id="customWeeks" type="number" min="1" placeholder="weeks" style="display:none;width:6rem">
+          <label class="checkbox"><input id="showGKI" type="checkbox" checked> GKI</label>
+          <label class="checkbox"><input id="showGlucose" type="checkbox" checked> Glucose</label>
+          <label class="checkbox"><input id="showKetone" type="checkbox" checked> Ketone</label>
+        </div>
+        <canvas id="gkiChart" height="160"></canvas>
+
+        <div class="history">
+          <div class="history-actions">
+            <button id="exportCsv" class="outline">Export CSV</button>
+            <button id="shareBtn">Share latest</button>
+            <button id="clearAll" class="danger">Clear All</button>
+          </div>
+          <ul id="records"></ul>
+        </div>
+      </section>
+
+      <section class="card info">
+        <h2>About GKI</h2>
+        <div class="text">
+          <p>The Glucose Ketone Index (GKI) compares blood glucose and ketone levels to estimate how deeply your body is running on fat vs sugar. Lower GKI values indicate deeper ketosis.</p>
+          <p>Formula: <strong>GKI = (Glucose (mg/dL) ÷ 18) × Ketones (mmol/L)</strong></p>
+
+          <table>
+            <thead><tr><th>GKI</th><th>Ketosis Level</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr><td>&lt;1</td><td>Extreme Ketosis</td><td>Used in medical therapies</td></tr>
+              <tr><td>1–3</td><td>Deep Ketosis</td><td>Strong fat-burning</td></tr>
+              <tr><td>3–6</td><td>Nutritional Ketosis</td><td>Ideal for fat loss & metabolic health</td></tr>
+              <tr><td>6–9</td><td>Light Ketosis</td><td>Mild fat-burning</td></tr>
+              <tr><td>&gt;9</td><td>No Ketosis</td><td>Body running on sugar</td></tr>
+            </tbody>
+          </table>
+
+          <p>How to lower GKI: cut carbs, fast longer, exercise, eat healthy fats. Aim for GKI &lt;6 for fat loss, &lt;3 for deeper ketosis.</p>
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="footer">
+      <div class="container">
+        <small>GKI Ketosis Calculator • Offline PWA • Built with care</small>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="/app.js"></script>
+  </div>
+</body>
 </html>

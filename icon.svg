@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="100%" height="100%" fill="#000"/>
+  <g fill="#fff">
+    <circle cx="160" cy="160" r="64" />
+    <rect x="280" y="120" width="160" height="80" rx="40"/>
+    <text x="256" y="420" font-size="48" text-anchor="middle" font-family="sans-serif">GKI</text>
+  </g>
+</svg>

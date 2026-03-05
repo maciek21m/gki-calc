@@ -1,0 +1,40 @@
+/* Black & White theme */
+:root{
+  --bg:#000;
+  --fg:#fff;
+  --muted:#bbb;
+  --accent:#fff;
+  --danger:#ff4d4d;
+}
+*{box-sizing:border-box}
+body{font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:var(--bg); color:var(--fg); margin:0}
+.container{max-width:900px;margin:0 auto;padding:1rem}
+.topbar{border-bottom:1px solid #111;padding:0.75rem 0}
+.topbar h1{margin:0;font-size:1.125rem}
+.vibe{color:var(--muted);font-size:0.8rem;text-decoration:none}
+.main{display:grid;grid-template-columns:1fr;gap:1rem;padding:1rem 0}
+.card{background:transparent;border:1px solid #222;padding:1rem;border-radius:12px}
+.card h2{margin:0 0 0.5rem 0}
+.row{margin-bottom:0.75rem}
+.input-row{display:flex;gap:0.5rem;align-items:center}
+.input-row input,.input-row select,input,textarea{background:transparent;border:1px solid #333;color:var(--fg);padding:0.5rem;border-radius:8px}
+input[type=number]::-webkit-inner-spin-button{opacity:1}
+.actions{display:flex;gap:0.5rem;margin-top:0.5rem}
+button{background:#111;border:1px solid #444;color:var(--fg);padding:0.6rem 0.9rem;border-radius:10px}
+button.outline{background:transparent;border:1px solid #555}
+button.muted{background:transparent;border:1px dashed #333;color:var(--muted)}
+button.danger{background:var(--danger);border-color:var(--danger);color:#111}
+.result{margin-top:0.75rem;padding:0.6rem;border-radius:8px;background:#070707;border:1px solid #222}
+.controls{display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;margin-bottom:0.5rem}
+.checkbox{display:inline-flex;align-items:center;gap:0.35rem}
+.history{margin-top:1rem}
+.history-actions{display:flex;gap:0.5rem;flex-wrap:wrap}
+#records{list-style:none;padding:0;margin:0;margin-top:0.5rem}
+#records li{padding:0.6rem;border-top:1px solid #111;display:flex;justify-content:space-between;gap:0.5rem}
+.record-meta{color:var(--muted);font-size:0.85rem}
+.record-actions button{padding:0.35rem 0.5rem;font-size:0.85rem}
+.info .text p{margin:0.5rem 0}
+table{width:100%;border-collapse:collapse;margin-top:0.5rem}
+th,td{border:1px solid #111;padding:0.4rem;font-size:0.9rem}
+.footer{border-top:1px solid #111;padding:0.75rem 0;margin-top:1rem;text-align:center;color:var(--muted)}
+@media(min-width:900px){.main{grid-template-columns:1fr 1fr}}
