@@ -1,10 +1,4 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Solid black background for theme matching -->
-  <rect width="512" height="512" rx="100" fill="#000000"/>
-  
-  <!-- Drop outline representing blood test / measurement -->
-  <path d="M256,80 C256,80 140,225 140,315 C140,379.1 191.9,427 256,427 C320.1,427 372,379.1 372,315 C372,225 256,80 256,80 Z" fill="none" stroke="#ffffff" stroke-width="36" stroke-linejoin="round" />
-  
-  <!-- Energy bolt inside representing ketosis/fat-burning -->
-  <path d="M280,165 L180,310 L245,310 L225,405 L325,260 L260,260 Z" fill="#ffffff" />
+  <rect width="100%" height="100%" fill="#000" rx="48"/>
+  <text x="50%" y="50%" fill="#fff" font-family="Inter, Arial, Helvetica, sans-serif" font-weight="700" font-size="200" text-anchor="middle" dominant-baseline="middle">GKI</text>
 </svg>
