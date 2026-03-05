@@ -9,13 +9,14 @@ function mmollToMgdl(mmoll){
 }
 
 function calculateGKI(glucoseValue, glucoseUnit, ketones){
-  let glucoseMmoll = glucoseValue;
+  let glucoseMmoll = parseFloat(glucoseValue);
   if(glucoseUnit === 'mgdL'){
     glucoseMmoll = mgdlToMmoll(parseFloat(glucoseValue));
   }
   const ket = parseFloat(ketones);
-  if(isNaN(glucoseMmoll) || isNaN(ket) || ket === 0) return null;
-  const gki = glucoseMmoll * ket;
+  if(isNaN(glucoseMmoll) || isNaN(ket) || ket <= 0) return null;
+  // Formula: GKI = Glucose (mmol/L) / Ketones (mmol/L)
+  const gki = glucoseMmoll / ket;
   return Number(gki.toFixed(2));
 }
 
