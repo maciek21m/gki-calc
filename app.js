@@ -1,11 +1,13 @@
 import { calculateGKI, saveRecord, loadRecords, overwriteRecords, exportCSV, mgdlToMmoll, mmollToMgdl } from './app-utils.js';
 
-if('serviceWorker' in navigator) {
+if('serviceWorker' in navigator && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
   navigator.serviceWorker.register('/sw.js').then(()=>{
     console.log('ServiceWorker registered');
   }).catch((err)=>{
     console.warn('ServiceWorker registration failed:', err);
   });
+} else {
+  console.log('Skipping service worker registration on localhost for development');
 }
 
 // expose on window for debugging
@@ -46,10 +48,40 @@ function debounce(fn, ms=300){
 let chart = null;
 const chartCtx = document.getElementById('gkiChart').getContext('2d');
 
-function formatDateInputValue(d){
-  // returns yyyy-mm-ddThh:mm
-  const pad = n=>String(n).padStart(2,'0');
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+function buildChart(data){
+  if(chart) chart.destroy();
+  const datasets = [];
+
+  datasets.push({
+    label:'GKI',
+    data:data.map(d=>({x:new Date(d.timestamp),y:d.gki})),
+    borderColor:'#fff',
+    backgroundColor:'rgba(255,255,255,0.05)',
+    tension:0.2,
+    yAxisID: 'y'
+  });
+
+  chart = new Chart(chartCtx,{
+    type:'line',
+    data:{datasets},
+    options:{
+      responsive:true,
+      scales:{
+        x:{type:'time',time:{unit:'day'},ticks:{color:'#bbb'}},
+        y:{position:'left',title:{display:true,text:'GKI'},ticks:{color:'#bbb'}}
+      },
+      plugins:{
+        legend:{display:false}, // simpler chart: only one series, so no legend needed
+        tooltip:{
+          callbacks:{
+            label: function(context){
+              return `GKI: ${context.parsed.y}`;
+            }
+          }
+        }
+      }
+    }
+  });
 }
 
 function setNow(){
@@ -209,26 +241,7 @@ function buildChart(data){
       yAxisID: 'y'
     });
   }
-  if(showGlucose.checked){
-    datasets.push({
-      label:'Glucose (mg/dL)',
-      data:data.map(d=>({x:new Date(d.timestamp),y: d.glucose_unit === 'mgdL' ? parseFloat(d.glucose) : (parseFloat(d.glucose)*18) })),
-      borderColor:'#888',
-      backgroundColor:'rgba(255,255,255,0.02)',
-      tension:0.2,
-      yAxisID: 'y2'
-    });
-  }
-  if(showKetone.checked){
-    datasets.push({
-      label:'Ketones (mmol/L)',
-      data:data.map(d=>({x:new Date(d.timestamp),y:parseFloat(d.ketones) })),
-      borderColor:'#aaa',
-      backgroundColor:'rgba(255,255,255,0.02)',
-      tension:0.2,
-      yAxisID: 'y3'
-    });
-  }
+
 
   chart = new Chart(chartCtx,{
     type:'line',
@@ -238,9 +251,7 @@ function buildChart(data){
       scales:{
         x:{type:'time',time:{unit:'day'},ticks:{color:'#bbb'}},
         y:{position:'left',title:{display:true,text:'GKI'},ticks:{color:'#bbb'}},
-        y2:{position:'right',grid:{display:false},title:{display:true,text:'Glucose (mg/dL)'},ticks:{color:'#bbb'}},
-        y3:{position:'right',grid:{display:false},offset:true,title:{display:true,text:'Ketones (mmol/L)'},ticks:{color:'#bbb'}}
-      },
+        },
       plugins:{
         legend:{labels:{color:'#ddd'}},
         tooltip:{
