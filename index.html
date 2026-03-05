@@ -4,13 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>GKI Ketosis Calculator</title>
-  <link rel="manifest" href="/manifest.json">
+  <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#000000">
-  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <style>html,body,#app{height:100%;margin:0}</style>
-  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="app">
@@ -24,7 +24,8 @@
 
     <main class="container main">
       <section class="card calc">
-        <h2>Calculate GKI</h2>
+        <h2 style="font-size:1.25rem;letter-spacing:0.02em">Calculate GKI</h2>
+        <p style="color:var(--muted);margin:0.25rem 0 1rem 0">Enter your blood glucose and ketone values. Default glucose unit is mg/dL.</p>
         <form id="calcForm">
           <div class="row">
             <label for="glucose">Blood Glucose</label>
@@ -65,7 +66,7 @@
       </section>
 
       <section class="card chart">
-        <h2>History & Chart</h2>
+        <h2 style="font-size:1.25rem;letter-spacing:0.02em">History & Chart</h2>
         <div class="controls">
           <label for="rangeSelect">Range:</label>
           <select id="rangeSelect" aria-label="Select Date Range">
@@ -121,7 +122,8 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script type="module" src="/app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script type="module" src="app.js"></script>
   </div>
 </body>
 </html>

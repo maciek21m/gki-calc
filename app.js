@@ -1,8 +1,8 @@
+import { calculateGKI, saveRecord, loadRecords, overwriteRecords, exportCSV, mgdlToMmoll, mmollToMgdl } from './app-utils.js';
+
 if('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js');
 }
-
-import { calculateGKI, saveRecord, loadRecords, overwriteRecords, exportCSV } from './app-utils.js';
 
 // expose on window for debugging
 window.AppUtils = { calculateGKI, saveRecord, loadRecords, overwriteRecords, exportCSV, mgdlToMmoll, mmollToMgdl };
@@ -65,7 +65,7 @@ function showResult(gki){
   else if(gki<9) level='Light Ketosis';
   else level='No Ketosis';
 
-  resultBox.innerHTML = `<strong>GKI: ${gki}</strong> — ${level}`;
+  resultBox.innerHTML = `<strong style="font-size:1.5rem">GKI: ${gki}</strong> <div style="margin-top:0.25rem;color:var(--muted)">${level}</div>`;
   showToast(`GKI ${gki} — ${level}`);
 }
 

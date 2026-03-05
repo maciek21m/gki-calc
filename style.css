@@ -7,17 +7,23 @@
   --danger:#ff4d4d;
 }
 *{box-sizing:border-box}
-body{font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:var(--bg); color:var(--fg); margin:0}
+body{font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:var(--bg); color:var(--fg); margin:0; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale}
+
+/* High contrast focus styles for accessibility */
+:focus{outline:2px solid #fff;outline-offset:2px}
+button:focus,input:focus,textarea:focus,select:focus{outline:3px solid #fff}
 .container{max-width:900px;margin:0 auto;padding:1rem}
 .topbar{border-bottom:1px solid #111;padding:0.75rem 0}
 .topbar h1{margin:0;font-size:1.125rem}
 .vibe{color:var(--muted);font-size:0.8rem;text-decoration:none}
 .main{display:grid;grid-template-columns:1fr;gap:1rem;padding:1rem 0}
-.card{background:transparent;border:1px solid #222;padding:1rem;border-radius:12px}
+.card{background:#000;border:1px solid #333;padding:1.5rem;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,0.5)}
 .card h2{margin:0 0 0.5rem 0}
 .row{margin-bottom:0.75rem}
 .input-row{display:flex;gap:0.5rem;align-items:center}
-.input-row input,.input-row select,input,textarea{background:transparent;border:1px solid #333;color:var(--fg);padding:0.5rem;border-radius:8px}
+.input-row input,.input-row select,input,textarea{background:#111;border:1px solid #333;color:var(--fg);padding:0.75rem;border-radius:10px}
+input::placeholder, textarea::placeholder{color:#777}
+input[aria-label], textarea[aria-label], select[aria-label]{font-size:1rem}
 input[type=number]::-webkit-inner-spin-button{opacity:1}
 .actions{display:flex;gap:0.5rem;margin-top:0.5rem}
 button{background:#111;border:1px solid #444;color:var(--fg);padding:0.6rem 0.9rem;border-radius:10px}
