@@ -14,6 +14,7 @@
 </head>
 <body>
   <div id="app">
+    <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
     <header class="topbar">
       <div class="container">
         <h1>GKI Ketosis Calculator</h1>
@@ -26,10 +27,10 @@
         <h2>Calculate GKI</h2>
         <form id="calcForm">
           <div class="row">
-            <label>Blood Glucose</label>
+            <label for="glucose">Blood Glucose</label>
             <div class="input-row">
-              <input id="glucose" type="number" step="any" min="0" placeholder="e.g. 90" required>
-              <select id="glucoseUnit">
+              <input id="glucose" type="number" step="any" min="0" placeholder="e.g. 90" required aria-label="Blood Glucose Value">
+              <select id="glucoseUnit" aria-label="Blood Glucose Unit">
                 <option value="mgdL" selected>mg/dL</option>
                 <option value="mmolL">mmol/L</option>
               </select>
@@ -37,26 +38,26 @@
           </div>
 
           <div class="row">
-            <label>Blood Ketones (mmol/L)</label>
-            <input id="ketones" type="number" step="any" min="0" placeholder="e.g. 1.5" required>
+            <label for="ketones">Blood Ketones (mmol/L)</label>
+            <input id="ketones" type="number" step="any" min="0" placeholder="e.g. 1.5" required aria-label="Blood Ketones Value">
           </div>
 
           <div class="row">
-            <label>Timestamp</label>
+            <label for="timestamp">Timestamp</label>
             <div class="input-row">
-              <button type="button" id="nowBtn" class="muted">Use now</button>
+              <button type="button" id="nowBtn" class="muted" aria-label="Set to current date and time">Use now</button>
               <input id="timestamp" type="datetime-local" aria-label="Measurement date and time">
             </div>
           </div>
 
           <div class="row">
-            <label>Note (optional)</label>
-            <textarea id="note" rows="2" placeholder="Add a note..."></textarea>
+            <label for="note">Note (optional)</label>
+            <textarea id="note" rows="2" placeholder="Add a note..." aria-label="Optional note"></textarea>
           </div>
 
           <div class="actions">
-            <button id="calcBtn" type="submit">Calculate & Save</button>
-            <button id="justCalc" type="button" class="outline">Calculate only</button>
+            <button id="calcBtn" type="submit" aria-label="Calculate GKI and Save Record">Calculate & Save</button>
+            <button id="justCalc" type="button" class="outline" aria-label="Calculate GKI Only">Calculate only</button>
           </div>
 
           <div id="result" class="result" aria-live="polite"></div>
@@ -66,8 +67,8 @@
       <section class="card chart">
         <h2>History & Chart</h2>
         <div class="controls">
-          <label>Range:</label>
-          <select id="rangeSelect">
+          <label for="rangeSelect">Range:</label>
+          <select id="rangeSelect" aria-label="Select Date Range">
             <option value="all">All</option>
             <option value="7">Last 7 days</option>
             <option value="30">Last 30 days</option>

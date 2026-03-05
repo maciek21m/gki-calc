@@ -45,6 +45,14 @@ function setNow(){
 nowBtn.addEventListener('click', setNow);
 setNow();
 
+function showToast(msg,duration=2500){
+  const container = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className='toast'; t.textContent=msg; container.appendChild(t);
+  setTimeout(()=>{ t.classList.add('visible'); },20);
+  setTimeout(()=>{ t.classList.remove('visible'); setTimeout(()=>container.removeChild(t),300); },duration);
+}
+
 function showResult(gki){
   if(gki===null){
     resultBox.textContent = 'Enter valid values (ketones must be greater than 0)';
@@ -58,6 +66,7 @@ function showResult(gki){
   else level='No Ketosis';
 
   resultBox.innerHTML = `<strong>GKI: ${gki}</strong> — ${level}`;
+  showToast(`GKI ${gki} — ${level}`);
 }
 
 function readForm(){
@@ -144,9 +153,10 @@ function editRecord(id){
     overwriteRecords(list);
     renderRecords();
     updateChart();
-    calcBtn.textContent = 'Calculate & Save';
-    calcBtn.removeEventListener('click', onSaveWrapper);
+    if(onSaveWrapper) calcBtn.removeEventListener('click', onSaveWrapper);
+    calcBtn.addEventListener('click', (e)=>{ e.preventDefault(); onCalculate(true); });
     onSaveWrapper = null;
+    showToast('Changes saved');
   };
   calcBtn.addEventListener('click', onSaveWrapper);
 }

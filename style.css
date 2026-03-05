@@ -25,6 +25,9 @@ button.outline{background:transparent;border:1px solid #555}
 button.muted{background:transparent;border:1px dashed #333;color:var(--muted)}
 button.danger{background:var(--danger);border-color:var(--danger);color:#111}
 .result{margin-top:0.75rem;padding:0.6rem;border-radius:8px;background:#070707;border:1px solid #222}
+.toast-container{position:fixed;left:50%;transform:translateX(-50%);top:1rem;z-index:999}
+.toast{background:#111;border:1px solid #333;color:var(--fg);padding:0.5rem 0.75rem;border-radius:8px;opacity:0;transition:all 0.25s ease;transform:translateY(-6px)}
+.toast.visible{opacity:1;transform:translateY(0)}
 .controls{display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;margin-bottom:0.5rem}
 .checkbox{display:inline-flex;align-items:center;gap:0.35rem}
 .history{margin-top:1rem}
