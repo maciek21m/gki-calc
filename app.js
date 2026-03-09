@@ -1,20 +1,31 @@
 import { saveRecord, loadRecords, overwriteRecords, exportCSV, mgdlToMmoll, mmollToMgdl } from './app-utils.js';
 
-// Development: ensure no stale service worker or caches on localhost
-if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.getRegistrations().then(regs => {
-      regs.forEach(r => {
-        try { r.unregister().then(()=>console.log('ServiceWorker unregistered by dev-guard')); } catch (e) { }
-      });
-    }).catch(()=>{});
-  }
+// Development: aggressive clear of Service Workers and Caches to fix preview staleness
+const IS_DEV = location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname.includes('shakespeare.diy') || location.hostname.includes('ngit') || location.port !== '';
+if (IS_DEV) {
+  (async function clearStaleCaches() {
+    let reloaded = sessionStorage.getItem('dev_sw_cleared');
+    if (!reloaded) {
+      if ('serviceWorker' in navigator) {
+        try {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map(r => r.unregister()));
+          console.log('[DEV] Unregistered stale service workers');
+        } catch (e) {}
+      }
+      if ('caches' in window) {
+        try {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+          console.log('[DEV] Cleared browser caches');
+        } catch (e) {}
+      }
+      sessionStorage.setItem('dev_sw_cleared', '1');
+      location.reload();
+    }
+  })();
 } else if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').then(()=>{
-    console.log('ServiceWorker registered');
-  }).catch((err)=>{
-    console.warn('ServiceWorker registration failed:', err);
-  });
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
 
 function computeGKI_local(glucoseValue, glucoseUnit, ketonesValue){
