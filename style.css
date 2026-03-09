@@ -22,7 +22,8 @@ button:focus,input:focus,textarea:focus,select:focus{outline:3px solid #fff}
 .row{margin-bottom:1.25rem;display:flex;flex-direction:column;gap:0.5rem}
 .row label{font-size:0.9rem;color:var(--muted);font-weight:500}
 .input-row{display:flex;gap:0.5rem;align-items:center}
-.input-row input{flex:1}
+.input-row input{flex:1;min-width:0}
+.input-row select{flex:0 0 9rem}
 .input-row input,.input-row select,input,textarea{
   background:#141414;
   border:1px solid #333;
@@ -31,8 +32,10 @@ button:focus,input:focus,textarea:focus,select:focus{outline:3px solid #fff}
   border-radius:12px;
   font-size:1rem;
   transition:all 0.2s ease;
-  width:100%
 }
+/* ensure number inputs don't show small native spinner and fit layout */
+input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button{ -webkit-appearance:none; margin:0 }
+input[type=number]{ -moz-appearance:textfield }
 input:focus,textarea:focus,select:focus{
   outline:none;
   border-color:#666;
