@@ -334,7 +334,7 @@ function initDOM(){
               try{
                 // Normalize date and time parts and construct a local Date
                 const dateMatch = /^\s*(\d{4})-(\d{1,2})-(\d{1,2})\s*$/.exec(datePart);
-                const timeMatch = /^(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/.exec(timePart);
+                const timeMatch = /^(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/.exec(timePart.trim());
                 if(dateMatch && timeMatch){
                   const year = parseInt(dateMatch[1],10);
                   const month = parseInt(dateMatch[2],10);
