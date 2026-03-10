@@ -331,9 +331,35 @@ function initDOM(){
             const timePart = r[time_i];
             // try to assemble ISO string (assume timezone provided or default to CET)
             if(datePart && timePart){
-              const tz = (tz_i!==-1 && r[tz_i]) ? r[tz_i] : 'CET';
-              // Note: CET handling is naive — we store local ISO string as-is
-              timestamp = new Date(`${datePart}T${timePart}`).toISOString();
+              try{
+                // Normalize date and time parts and construct a local Date
+                const dateMatch = /^\s*(\d{4})-(\d{1,2})-(\d{1,2})\s*$/.exec(datePart);
+                const timeMatch = /^(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/.exec(timePart);
+                if(dateMatch && timeMatch){
+                  const year = parseInt(dateMatch[1],10);
+                  const month = parseInt(dateMatch[2],10);
+                  const day = parseInt(dateMatch[3],10);
+                  const hour = parseInt(timeMatch[1],10);
+                  const minute = parseInt(timeMatch[2],10);
+                  const second = parseInt(timeMatch[3]||'0',10);
+
+                  // Create a local Date (not ISO string with timezone suffix) to avoid parsing differences
+                  const localDate = new Date(year, month-1, day, hour, minute, second);
+                  if (!isNaN(localDate.getTime())){
+                    timestamp = localDate.toISOString();
+                  } else {
+                    throw new Error('Invalid localDate');
+                  }
+                } else {
+                  // Fallback to generic parse
+                  const tz = (tz_i!==-1 && r[tz_i]) ? r[tz_i] : 'CET';
+                  timestamp = new Date(`${datePart}T${timePart}`).toISOString();
+                }
+              }catch(err){
+                console.warn('Failed to parse date/time for row:', datePart, timePart, err);
+                // leave timestamp as now if parsing fails
+                timestamp = new Date().toISOString();
+              }
             }
           } else if(idx('timestamp')!==-1){
             timestamp = r[idx('timestamp')] || timestamp;
