@@ -340,9 +340,10 @@ function initDOM(){
           const glucose_unit = (gu_i!==-1 && r[gu_i]) ? r[gu_i] : (glucoseRaw && glucoseRaw.toString().indexOf('.')!==-1 ? 'mmolL' : 'mgdL');
           const glucose = glucoseRaw;
           const ketones = r[k_i] || '';
-          const gki_val = (gki_i!==-1 && r[gki_i]) ? parseFloat(r[gki_i]) : null;
+          const gki_val = (gki_i!==-1 && r[gki_i] !== undefined && r[gki_i].trim() !== '') ? parseFloat(r[gki_i]) : null;
 
-          const gki = gki_val || (glucose ? computeGKI_local(glucose, glucose_unit, ketones) : null);
+          // If gki is empty, compute it on import
+          const gki = gki_val !== null ? gki_val : (glucose && ketones ? computeGKI_local(glucose, glucose_unit, ketones) : null);
           return {
             timestamp: timestamp,
             glucose: glucose,
