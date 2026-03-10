@@ -42,11 +42,25 @@ function overwriteRecords(list){
 }
 
 function exportCSV(records){
-  const rows = [['timestamp','iso','glucose','glucose_unit','ketones','gki','note']];
+  const rows = [['date','time','timezone','glucose','glucose_unit','ketones','gki','note']];
   for(const r of records){
-    rows.push([r.timestamp, new Date(r.timestamp).toISOString(), r.glucose, r.glucose_unit, r.ketones, r.gki, r.note ? r.note.replace(/\n/g,' ') : '']);
+    const d = new Date(r.timestamp);
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const timeStr = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    const tzStr = 'CET'; // Default per request, or we could determine system timezone if needed
+
+    rows.push([
+      dateStr,
+      timeStr,
+      tzStr,
+      r.glucose,
+      r.glucose_unit,
+      r.ketones,
+      r.gki,
+      r.note ? r.note.replace(/\n/g,' ') : ''
+    ]);
   }
-  return rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""') }"`).join(',')).join('\n');
+  return rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
 }
 
 export {calculateGKI,mgdlToMmoll,mmollToMgdl,saveRecord,loadRecords,overwriteRecords,exportCSV};
