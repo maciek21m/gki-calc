@@ -2,7 +2,7 @@
 <html lang="en"><head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>GKI Ketosis Calculator v1.1</title>
+  <title>GKI Ketosis Calculator v0.2</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#000000">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -16,7 +16,7 @@
     <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
     <header class="topbar">
       <div class="container">
-        <h1 id="app-title">GKI Ketosis Calculator v1.1</h1>
+        <h1 id="app-title">GKI Ketosis Calculator v0.2</h1>
         <a class="vibe" href="https://shakespeare.diy" target="_blank" rel="noreferrer">Vibed with Shakespeare</a>
       </div>
     </header>
@@ -82,8 +82,10 @@
         <canvas id="gkiChart" height="160"></canvas>
 
         <div class="history">
-          <div class="history-actions">
+            <div class="history-actions">
             <button id="exportCsv" class="outline">Export CSV</button>
+            <button id="importCsv" class="outline">Import CSV</button>
+            <input id="importFile" type="file" accept="text/csv" style="display:none">
             <button id="shareBtn">Share latest</button>
             <button id="clearAll" class="danger">Clear All</button>
           </div>

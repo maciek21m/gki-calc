@@ -67,6 +67,8 @@ function initDOM(){
     customWeeks: document.getElementById('customWeeks'),
     showGKI: document.getElementById('showGKI'),
     exportCsv: document.getElementById('exportCsv'),
+    importCsv: document.getElementById('importCsv'),
+    importFile: document.getElementById('importFile'),
     shareBtn: document.getElementById('shareBtn'),
     clearAll: document.getElementById('clearAll'),
     calcForm: document.getElementById('calcForm'),
@@ -251,6 +253,31 @@ function initDOM(){
   if(els.glucoseUnit) els.glucoseUnit.addEventListener('change', liveUpdate);
   els.ketones.addEventListener('input', liveUpdate);
 
+  // CSV parser function (fallback & local implementation)
+  function parseCSV_local(text){
+    const lines = text.split(/\r?\n/).filter(l=>l.trim()!=='');
+    return lines.map(line=>{
+      const row = [];
+      let cur = '';
+      let inQuote = false;
+      for(let i=0;i<line.length;i++){
+        const ch = line[i];
+        if(ch === '"'){
+          if(inQuote && line[i+1] === '"') { cur += '"'; i++; continue; }
+          inQuote = !inQuote; continue;
+        }
+        if(ch === ',' && !inQuote){ row.push(cur.trim()); cur=''; continue; }
+        if(ch === ';' && !inQuote){ row.push(cur.trim()); cur=''; continue; }
+        if(ch === '\t' && !inQuote){ row.push(cur.trim()); cur=''; continue; }
+        cur += ch;
+      }
+      row.push(cur.trim());
+      return row;
+    });
+  }
+  // expose on window for other code
+  window.parseCSV = parseCSV_local;
+
   if(els.rangeSelect) els.rangeSelect.addEventListener('change', ()=>{
     if(els.customWeeks) els.customWeeks.style.display = els.rangeSelect.value === 'custom' ? 'inline-block' : 'none';
     updateChart();
@@ -262,12 +289,82 @@ function initDOM(){
     const blob = new Blob([exportCSV(loadRecords())],{type:'text/csv'}); 
     const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download='gki-records.csv'; a.click(); URL.revokeObjectURL(url); 
   });
+
+  // Import CSV handling
+  if(els.importCsv && els.importFile){
+    els.importCsv.addEventListener('click', ()=>{ console.log('[IMPORT] importCsv clicked'); els.importFile.click(); });
+    els.importFile.addEventListener('change', async (e)=>{
+      console.log('[IMPORT] file input change', e);
+      const file = e.target.files && e.target.files[0];
+      if(!file){ console.log('[IMPORT] no file selected'); return; }
+      try{
+        console.log('[IMPORT] reading file', file.name, file.size);
+        const text = await file.text();
+        console.log('[IMPORT] file text length', text.length);
+        // Support common delimiters: detect comma or semicolon (or tab)
+        const delimiter = (text.indexOf(';') !== -1 && text.indexOf(',') === -1) ? ';' : (text.indexOf('\t') !== -1 ? '\t' : ',');
+        const parsed = window.parseCSV ? window.parseCSV(text) : (text.split(/\r?\n/).map(l=>l.split(delimiter)));
+
+        // Normalize header (lowercase, trim)
+        const header = parsed[0].map(h=>h.toString().toLowerCase().trim());
+        const idx = (name)=> header.indexOf(name);
+        const t_i = idx('timestamp');
+        const g_i = idx('glucose');
+        const gu_i = idx('glucose_unit')!==-1 ? idx('glucose_unit') : idx('glucose unit');
+        const k_i = idx('ketones');
+        const gki_i = idx('gki');
+        const note_i = idx('note');
+
+        const rows = parsed.slice(1).filter(r=>r && r.length>0 && r.join('').trim() !== '');
+        const records = rows.map(r=>{
+          const timestamp = r[t_i] || new Date().toISOString();
+          const glucoseRaw = r[g_i] || '';
+          const glucose_unit = (gu_i!==-1 && r[gu_i]) ? r[gu_i] : (glucoseRaw && glucoseRaw.toString().indexOf('.')!==-1 ? 'mmolL' : 'mgdL');
+          const glucose = glucoseRaw;
+          const ketones = r[k_i] || '';
+          const gki_val = (gki_i!==-1 && r[gki_i]) ? parseFloat(r[gki_i]) : null;
+
+          const gki = gki_val || (glucose ? computeGKI_local(glucose, glucose_unit, ketones) : null);
+          return {
+            timestamp: timestamp,
+            glucose: glucose,
+            glucose_unit: glucose_unit || 'mgdL',
+            ketones: ketones,
+            gki: gki,
+            note: note_i!==-1 ? (r[note_i]||'') : ''
+          };
+        }).filter(r=>r.gki !== null);
+
+        // Merge and dedupe by timestamp+glucose+ketones (avoid exact duplicates)
+        const existing = loadRecords();
+        const combined = [...records, ...existing];
+        const seen = new Set();
+        const unique = [];
+        for(const rec of combined){
+          const key = `${rec.timestamp}||${rec.glucose}||${rec.ketones}`;
+          if(seen.has(key)) continue;
+          seen.add(key);
+          unique.push({ ...rec, id:'r_'+Date.now()+Math.random().toString(36).slice(2) });
+        }
+
+        overwriteRecords(unique);
+        renderRecords();
+        updateChart();
+        showToast('Imported CSV successfully');
+      }catch(err){
+        console.error(err); alert('Failed to import CSV');
+      } finally{
+        els.importFile.value = '';
+      }
+    });
+  }
   
   if(els.shareBtn) els.shareBtn.addEventListener('click', async ()=>{ 
     const list=loadRecords(); if(list.length===0){ alert('No records'); return; } 
     const r=list[0]; const text=`GKI: ${r.gki} (Glucose: ${r.glucose} ${r.glucose_unit}, Ketones: ${r.ketones}) on ${new Date(r.timestamp).toLocaleDateString()}`; 
     if(navigator.share){ try{await navigator.share({title:'GKI Result',text});}catch(e){} } else { await navigator.clipboard.writeText(text); showToast('Copied to clipboard'); } 
   });
+
 
   if(els.clearAll) els.clearAll.addEventListener('click', ()=>{ if(confirm('Clear all history?')){ overwriteRecords([]); renderRecords(); updateChart(); } });
 
