@@ -36,6 +36,14 @@ button:focus,input:focus,textarea:focus,select:focus{outline:3px solid #fff}
 /* ensure number inputs don't show small native spinner and fit layout */
 input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button{ -webkit-appearance:none; margin:0 }
 input[type=number]{ -moz-appearance:textfield }
+
+/* ensure the select and input share a balanced layout on small screens */
+.input-row{flex-wrap:nowrap}
+.input-row input{min-width:0}
+.input-row select{flex:0 0 8rem}
+
+/* make number input visually larger */
+input[type="number"], input[type="text"]{font-size:1.05rem;padding-left:1rem;padding-right:1rem}
 input:focus,textarea:focus,select:focus{
   outline:none;
   border-color:#666;
