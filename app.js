@@ -307,7 +307,10 @@ function initDOM(){
         const parsed = window.parseCSV ? window.parseCSV(text) : (text.split(/\r?\n/).map(l=>l.split(delimiter)));
 
         // Normalize header (lowercase, trim)
-        // detect header variations (new format: date,time,timezone,glucose,...)
+        // strip BOM if present
+        if(parsed[0] && parsed[0][0] && parsed[0][0].startsWith('\uFEFF')){
+          parsed[0][0] = parsed[0][0].replace('\uFEFF','');
+        }
         const header = parsed[0].map(h=>h.toString().toLowerCase().trim());
         const idx = (name)=> header.indexOf(name);
         const date_i = idx('date');
@@ -319,7 +322,7 @@ function initDOM(){
         const gki_i = idx('gki');
         const note_i = idx('note');
 
-        const rows = parsed.slice(1).filter(r=>r && r.length>0 && r.join('').trim() !== '');
+        const rows = parsed.slice(1).filter(r=>r && r.length>0 && r.join('').trim() !== '').map(r=>r.map(c=>c==null? '': String(c)));
         const records = rows.map(r=>{
           // Handle new date/time/timezone format
           let timestamp = new Date().toISOString();
