@@ -306,9 +306,12 @@ function initDOM(){
         const parsed = window.parseCSV ? window.parseCSV(text) : (text.split(/\r?\n/).map(l=>l.split(delimiter)));
 
         // Normalize header (lowercase, trim)
+        // detect header variations (new format: date,time,timezone,glucose,...)
         const header = parsed[0].map(h=>h.toString().toLowerCase().trim());
         const idx = (name)=> header.indexOf(name);
-        const t_i = idx('timestamp');
+        const date_i = idx('date');
+        const time_i = idx('time');
+        const tz_i = idx('timezone');
         const g_i = idx('glucose');
         const gu_i = idx('glucose_unit')!==-1 ? idx('glucose_unit') : idx('glucose unit');
         const k_i = idx('ketones');
@@ -317,7 +320,21 @@ function initDOM(){
 
         const rows = parsed.slice(1).filter(r=>r && r.length>0 && r.join('').trim() !== '');
         const records = rows.map(r=>{
-          const timestamp = r[t_i] || new Date().toISOString();
+          // Handle new date/time/timezone format
+          let timestamp = new Date().toISOString();
+          if(date_i!==-1 && time_i!==-1){
+            const datePart = r[date_i];
+            const timePart = r[time_i];
+            // try to assemble ISO string (assume timezone provided or default to CET)
+            if(datePart && timePart){
+              const tz = (tz_i!==-1 && r[tz_i]) ? r[tz_i] : 'CET';
+              // Note: CET handling is naive — we store local ISO string as-is
+              timestamp = new Date(`${datePart}T${timePart}`).toISOString();
+            }
+          } else if(idx('timestamp')!==-1){
+            timestamp = r[idx('timestamp')] || timestamp;
+          }
+
           const glucoseRaw = r[g_i] || '';
           const glucose_unit = (gu_i!==-1 && r[gu_i]) ? r[gu_i] : (glucoseRaw && glucoseRaw.toString().indexOf('.')!==-1 ? 'mmolL' : 'mgdL');
           const glucose = glucoseRaw;

@@ -1,4 +1,4 @@
-timestamp,iso,glucose,glucose_unit,ketones,gki,note
-"2026-03-01T08:00","2026-03-01T08:00:00.000Z",95,mgdL,1.2,4.40,"Morning fasting"
-"2026-03-02T08:15","2026-03-02T08:15:00.000Z",88,mgdL,1.5,3.26,"Deep fast, feeling good"
-"2026-03-03T07:45","2026-03-03T07:45:00.000Z",5.0,mmolL,1.8,2.78,"mmol/L input test"
+date,time,timezone,glucose,glucose_unit,ketones,gki,note
+2026-03-01,08:00,CET,95,mgdL,1.2,4.40,Morning fasting
+2026-03-02,08:15,CET,88,mgdL,1.5,3.26,Deep fast, feeling good
+2026-03-03,07:45,CET,5.0,mmolL,1.8,2.78,mmol/L input test
