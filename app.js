@@ -302,7 +302,8 @@ function initDOM(){
         const text = await file.text();
         console.log('[IMPORT] file text length', text.length);
         // Support common delimiters: detect comma or semicolon (or tab)
-        const delimiter = (text.indexOf(';') !== -1 && text.indexOf(',') === -1) ? ';' : (text.indexOf('\t') !== -1 ? '\t' : ',');
+        // Enforce semicolon delimiter for both import and export as requested
+        const delimiter = (text.indexOf(';') !== -1) ? ';' : (text.indexOf(',') !== -1 ? ',' : (text.indexOf('\t') !== -1 ? '\t' : ';'));
         const parsed = window.parseCSV ? window.parseCSV(text) : (text.split(/\r?\n/).map(l=>l.split(delimiter)));
 
         // Normalize header (lowercase, trim)
