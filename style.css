@@ -114,13 +114,13 @@ button.muted{background:transparent;border:1px dashed #333;color:var(--muted);pa
 
 .info .text{color:#ccc;line-height:1.5;font-size:0.85rem;max-width:600px;margin:0 auto}
 .info .text p{margin:0.3rem 0}
-.timestamp-display{color:var(--muted);font-size:0.85rem;margin-left:0.4rem}
+.timestamp-display{color:var(--muted);font-size:0.75rem;display:block;margin-top:0.15rem}
 
 table{width:100%;border-collapse:separate;border-spacing:0;margin:0.75rem 0;border-radius:8px;overflow:hidden;border:1px solid #222}
 th,td{border-bottom:1px solid #222;padding:0.5rem 0.6rem;text-align:left;font-size:0.82rem}
 th{background:#111;font-weight:600;color:#fff}
 tr:last-child td{border-bottom:none}
-td:first-child{font-weight:600;color:#fff}
+td:first-child{font-weight:600;color:#fff;white-space:nowrap;width:3.5rem}
 /* Colored table rows for ketosis levels */
 tr.zone-extreme td{background:rgba(168,85,247,0.15)}
 tr.zone-deep td{background:rgba(59,130,246,0.15)}

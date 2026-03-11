@@ -68,7 +68,7 @@ function initDOM(){
     recordsList: document.getElementById('records'),
     rangeSelect: document.getElementById('rangeSelect'),
     customWeeks: document.getElementById('customWeeks'),
-    showGKI: document.getElementById('showGKI'),
+
     exportCsv: document.getElementById('exportCsv'),
     importCsv: document.getElementById('importCsv'),
     importFile: document.getElementById('importFile'),
@@ -182,7 +182,8 @@ function initDOM(){
     if(chart) chart.destroy();
     
     const datasets = [];
-    if(els.showGKI && els.showGKI.checked){
+    // Always show GKI series (checkboxes removed)
+    {
       datasets.push({
         label:'GKI',
         data:data.map(d=>({x:new Date(d.timestamp),y:d.gki})),
@@ -417,7 +418,7 @@ function initDOM(){
     updateChart();
   });
   if(els.customWeeks) els.customWeeks.addEventListener('input', updateChart);
-  if(els.showGKI) els.showGKI.addEventListener('change', updateChart);
+
 
   if(els.exportCsv) els.exportCsv.addEventListener('click', ()=>{ 
     const blob = new Blob([exportCSV(loadRecords())],{type:'text/csv'}); 
