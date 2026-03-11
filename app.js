@@ -25,7 +25,9 @@ if (IS_DEV) {
     }
   })();
 } else if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js').catch(() => {});
+  navigator.serviceWorker.register('/sw.js').catch((err) => {
+    console.warn('SW registration failed:', err);
+  });
 }
 
 function computeGKI_local(glucoseValue, glucoseUnit, ketonesValue){
