@@ -265,7 +265,7 @@ function initDOM(){
     for(const r of list){
       const li = document.createElement('li');
       const left = document.createElement('div');
-      left.innerHTML = `<div class="record-main"><div class="record-gki">${r.gki}</div><div class="record-meta">${formatDateDisp(r.timestamp)} ${new Date(r.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12:false})}</div></div><div class="record-data">Glucose: ${r.glucose} ${r.glucose_unit} • Ketones: ${r.ketones} mmol/L</div><div style="font-size:0.9rem; margin-top:4px">${r.note||''}</div>`;
+      left.innerHTML = `<div class="record-main"><div class="record-gki">${r.gki}</div><div class="record-meta">${formatDateDisp(r.timestamp)}</div></div><div class="record-data"><div>${new Date(r.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12:false})} • ${r.glucose} ${r.glucose_unit} • ${r.ketones} mmol/L</div><div class="record-note">${r.note? r.note : ''}</div></div>`;
       const right = document.createElement('div');
       right.className='record-actions';
       const editBtn = document.createElement('button'); editBtn.textContent='Edit';
