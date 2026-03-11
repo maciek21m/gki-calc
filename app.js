@@ -72,7 +72,7 @@ function initDOM(){
     exportCsv: document.getElementById('exportCsv'),
     importCsv: document.getElementById('importCsv'),
     importFile: document.getElementById('importFile'),
-    shareBtn: document.getElementById('shareBtn'),
+
     clearAll: document.getElementById('clearAll'),
     calcForm: document.getElementById('calcForm'),
     chartCtx: document.getElementById('gkiChart') ? document.getElementById('gkiChart').getContext('2d') : null
@@ -242,10 +242,16 @@ function initDOM(){
     }
   }
 
+  // Sort records by date (newest first)
+  function getSortedRecords(){
+    return loadRecords().sort((a,b)=> new Date(b.timestamp) - new Date(a.timestamp));
+  }
+
   function getFilteredRecords(){
-    let list = loadRecords();
-    const range = els.rangeSelect ? els.rangeSelect.value : 'all';
-    if(range === 'all') return list.reverse();
+    let list = getSortedRecords();
+    const range = els.rangeSelect ? els.rangeSelect.value : 'last7entries';
+    if(range === 'last7entries') return list.slice(0, 7);
+    if(range === 'all') return list;
     let cutoff = new Date();
     if(range === '7') cutoff.setDate(cutoff.getDate()-7);
     else if(range === '30') cutoff.setDate(cutoff.getDate()-30);
@@ -253,27 +259,31 @@ function initDOM(){
       const weeks = parseInt(els.customWeeks.value) || 1;
       cutoff.setDate(cutoff.getDate() - weeks*7);
     }
-    return list.filter(r=>new Date(r.timestamp) >= cutoff).reverse();
+    return list.filter(r=>new Date(r.timestamp) >= cutoff);
   }
 
   function updateChart(){
     buildChart(getFilteredRecords());
   }
 
+  let recordsExpanded = false;
+  const VISIBLE_COUNT = 3;
+
   function renderRecords(){
     if(!els.recordsList) return;
-    const list = loadRecords();
+    const list = getSortedRecords();
     els.recordsList.innerHTML='';
-    for(const r of list){
+
+    const visibleList = recordsExpanded ? list : list.slice(0, VISIBLE_COUNT);
+
+    for(const r of visibleList){
       const li = document.createElement('li');
       const left = document.createElement('div');
       left.className = 'record-left';
-      // Top row: GKI, date/time/values
       const dateStr = formatDateDisp(r.timestamp);
       const timeStr = new Date(r.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12:false});
       const valuesStr = `${timeStr} • ${r.glucose} ${r.glucose_unit} • ${r.ketones} mmol/L`;
       let topHtml = `<div class="record-top"><div class="record-gki">${r.gki}</div><div class="record-info">${dateStr} • ${valuesStr}</div></div>`;
-      // Note on separate line if present
       if(r.note && String(r.note).trim() !== ''){
         topHtml += `<div class="record-note">${r.note}</div>`;
       }
@@ -288,6 +298,21 @@ function initDOM(){
       right.appendChild(editBtn); right.appendChild(delBtn);
       li.appendChild(left); li.appendChild(right);
       els.recordsList.appendChild(li);
+    }
+
+    // Show more / Show less toggle
+    if(list.length > VISIBLE_COUNT){
+      const toggle = document.createElement('div');
+      toggle.className = 'show-more-link';
+      if(recordsExpanded){
+        toggle.textContent = 'Show less';
+        toggle.addEventListener('click', ()=>{ recordsExpanded = false; renderRecords(); });
+      } else {
+        const remaining = list.length - VISIBLE_COUNT;
+        toggle.textContent = `Show ${remaining} more entries`;
+        toggle.addEventListener('click', ()=>{ recordsExpanded = true; renderRecords(); });
+      }
+      els.recordsList.appendChild(toggle);
     }
   }
 
@@ -516,11 +541,7 @@ function initDOM(){
     });
   }
   
-  if(els.shareBtn) els.shareBtn.addEventListener('click', async ()=>{ 
-    const list=loadRecords(); if(list.length===0){ alert('No records'); return; } 
-    const r=list[0]; const text=`GKI: ${r.gki} (Glucose: ${r.glucose} ${r.glucose_unit}, Ketones: ${r.ketones}) on ${new Date(r.timestamp).toLocaleDateString()}`; 
-    if(navigator.share){ try{await navigator.share({title:'GKI Result',text});}catch(e){} } else { await navigator.clipboard.writeText(text); showToast('Copied to clipboard'); } 
-  });
+
 
 
   if(els.clearAll) els.clearAll.addEventListener('click', ()=>{ if(confirm('Clear all history?')){ overwriteRecords([]); renderRecords(); updateChart(); } });

@@ -2,7 +2,7 @@
 <html lang="en"><head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <title>GKI Ketosis Calculator v0.3.4</title>
+  <title>GKI Ketosis Calculator v0.3.5</title>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#000000">
   <link rel="icon" href="icon-512.svg" type="image/svg+xml">
@@ -19,8 +19,8 @@
     <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
     <header class="topbar">
       <div class="container">
-        <h1 id="app-title">GKI Ketosis Calculator v0.3.4</h1>
-        <a class="vibe" href="https://shakespeare.diy" target="_blank" rel="noreferrer">Vibed with Shakespeare</a>
+        <h1 id="app-title">GKI Ketosis Calculator</h1>
+        <p class="subtitle" id="app-subtitle">v0.3.5</p>
       </div>
     </header>
 
@@ -73,6 +73,7 @@
         <div class="controls">
           <label for="rangeSelect">Range:</label>
           <select id="rangeSelect" aria-label="Select Date Range">
+            <option value="last7entries" selected="">Last 7 entries</option>
             <option value="all">All</option>
             <option value="7">Last 7 days</option>
             <option value="30">Last 30 days</option>
@@ -90,7 +91,7 @@
             <button id="exportCsv" class="outline">Export CSV</button>
             <button id="importCsv" class="outline">Import CSV</button>
             <input id="importFile" type="file" accept="text/csv" style="display:none">
-            <button id="shareBtn">Share latest</button>
+
             <button id="clearAll" class="danger">Clear All</button>
           </div>
           <ul id="records"></ul>
@@ -106,11 +107,11 @@
           <table>
             <thead><tr><th>GKI</th><th>Ketosis Level</th><th>Meaning</th></tr></thead>
             <tbody>
-              <tr><td>&lt;1</td><td>Extreme Ketosis</td><td>Used in medical therapies</td></tr>
-              <tr><td>1–3</td><td>Deep Ketosis</td><td>Strong fat-burning</td></tr>
-              <tr><td>3–6</td><td>Nutritional Ketosis</td><td>Ideal for fat loss &amp; metabolic health</td></tr>
-              <tr><td>6–9</td><td>Light Ketosis</td><td>Mild fat-burning</td></tr>
-              <tr><td>&gt;9</td><td>No Ketosis</td><td>Body running on sugar</td></tr>
+              <tr class="zone-extreme"><td>&lt;1</td><td>Extreme Ketosis</td><td>Used in medical therapies</td></tr>
+              <tr class="zone-deep"><td>1–3</td><td>Deep Ketosis</td><td>Strong fat-burning</td></tr>
+              <tr class="zone-nutritional"><td>3–6</td><td>Nutritional Ketosis</td><td>Ideal for fat loss &amp; metabolic health</td></tr>
+              <tr class="zone-light"><td>6–9</td><td>Light Ketosis</td><td>Mild fat-burning</td></tr>
+              <tr class="zone-none"><td>&gt;9</td><td>No Ketosis</td><td>Body running on sugar</td></tr>
             </tbody>
           </table>
 
