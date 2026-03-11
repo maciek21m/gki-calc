@@ -125,6 +125,7 @@ button.danger:hover{background:rgba(255,77,77,0.1)}
 .record-actions button{padding:0.5rem 1rem;font-size:0.85rem;border-radius:8px}
 
 .info .text{color:#ccc;line-height:1.6;font-size:0.95rem;max-width:600px;margin:0 auto}
+.timestamp-display{color:var(--muted);font-size:0.95rem;margin-left:0.5rem}
 table{width:100%;border-collapse:separate;border-spacing:0;margin:1.5rem 0;border-radius:12px;overflow:hidden;border:1px solid #222}
 th,td{border-bottom:1px solid #222;padding:1rem;text-align:left}
 th{background:#111;font-weight:600;color:#fff}

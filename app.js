@@ -57,6 +57,7 @@ function initDOM(){
     glucoseUnit: document.getElementById('glucoseUnit'),
     ketones: document.getElementById('ketones'),
     timestamp: document.getElementById('timestamp'),
+    timestampDisplay: document.getElementById('timestampDisplay'),
     nowBtn: document.getElementById('nowBtn'),
     note: document.getElementById('note'),
     calcBtn: document.getElementById('calcBtn'),
@@ -92,9 +93,22 @@ function initDOM(){
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   }
   function formatDateInputValue(d){ const pad = n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; }
-  function setNowLocal(){ if(els.timestamp) els.timestamp.value = formatDateInputValue(new Date()); }
+  function setNowLocal(){ if(els.timestamp) { els.timestamp.value = formatDateInputValue(new Date()); } updateTimestampDisplay(); }
   if(els.nowBtn) els.nowBtn.addEventListener('click', setNowLocal);
   setNowLocal();
+
+  function updateTimestampDisplay(){
+    if(!els.timestampDisplay || !els.timestamp) return;
+    const iso = els.timestamp.value;
+    if(!iso) { els.timestampDisplay.textContent = ''; return; }
+    const d = new Date(iso);
+    const pad = n=>String(n).padStart(2,'0');
+    const disp = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    els.timestampDisplay.textContent = disp;
+  }
+  // update on change
+  if(els.timestamp) els.timestamp.addEventListener('change', updateTimestampDisplay);
+
 
   function showToast(msg,duration=2500){
     let container = document.getElementById('toast-container');
