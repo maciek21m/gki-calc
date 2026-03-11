@@ -124,7 +124,7 @@ button.danger:hover{background:rgba(255,77,77,0.1)}
 .record-left{display:flex;flex-direction:column;flex:1;gap:0.15rem}
 .record-top{display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap}
 .record-gki{font-size:1.25rem;font-weight:800;min-width:64px;flex:0 0 auto}
-.record-info{color:#ccc;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1 1 auto:min-width:60%}
+.record-info{color:#ccc;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1 1 auto;min-width:60%}
 .record-note{font-size:0.85rem;color:#fff;margin-top:0;margin-left:0;padding-top:4px}
 .record-actions{display:flex;gap:0.25rem;flex:0 0 auto;margin-left:0.5rem}
 .record-actions button,.small{padding:0.28rem 0.45rem;font-size:0.78rem;border-radius:6px;background:#111;color:#fff;border:1px solid #333}
