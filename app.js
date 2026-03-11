@@ -270,8 +270,7 @@ function initDOM(){
       const dateStr = formatDateDisp(r.timestamp);
       const timeStr = new Date(r.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12:false});
       const valuesStr = `${timeStr} • ${r.glucose} ${r.glucose_unit} • ${r.ketones} mmol/L`;
-      let topHtml = `<div class="record-top"><div class="record-gki">${r.gki}</div><div class="record-info">${dateStr} • ${valuesStr}</div><div class="record-actions">`;
-      topHtml += `<button class="small">Edit</button><button class="small danger">Del</button></div></div>`;
+      let topHtml = `<div class="record-top"><div class="record-gki">${r.gki}</div><div class="record-info">${dateStr} • ${valuesStr}</div></div>`;
       // Note on separate line if present
       if(r.note && String(r.note).trim() !== ''){
         topHtml += `<div class="record-note">${r.note}</div>`;
@@ -280,8 +279,8 @@ function initDOM(){
 
       const right = document.createElement('div');
       right.className='record-actions';
-      const editBtn = document.createElement('button'); editBtn.textContent='Edit';
-      const delBtn = document.createElement('button'); delBtn.textContent='Delete'; delBtn.className='danger';
+      const editBtn = document.createElement('button'); editBtn.textContent='Edit'; editBtn.className='small';
+      const delBtn = document.createElement('button'); delBtn.textContent='Del'; delBtn.className='small danger';
       editBtn.addEventListener('click', ()=>editRecord(r.id));
       delBtn.addEventListener('click', ()=>deleteRecord(r.id));
       right.appendChild(editBtn); right.appendChild(delBtn);
