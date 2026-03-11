@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "npm i --silent && vite",
     "build": "npm i --silent && vite build -l error && node ./scripts/copy-404.cjs && echo 'Project built successfully!'",
-    "test": "npm i --silent && tsc --noEmit && eslint && vitest run --reporter=dot --silent && vite build -l error && node ./scripts/copy-404.js && echo 'All tests passed!'"
+    "test": "npm i --silent && tsc --noEmit && eslint && vitest run --reporter=dot --silent && vite build -l error && node ./scripts/copy-404.cjs && echo 'All tests passed!'",
+    "bump:patch": "node ./scripts/bump-version.cjs patch",
+    "bump:minor": "node ./scripts/bump-version.cjs minor",
+    "bump:major": "node ./scripts/bump-version.cjs major"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.2.6",
