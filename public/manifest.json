@@ -2,7 +2,8 @@
   "name": "GKI Ketosis Calculator",
   "short_name": "GKI Calc",
   "description": "Track your Glucose Ketone Index, monitor ketosis levels, and log measurements with charts and CSV import/export.",
-  "start_url": "/",
+  "start_url": "/gki-calc/",
+  "scope": "/gki-calc/",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#000000",
@@ -10,13 +11,13 @@
   "categories": ["health", "medical", "fitness"],
   "icons": [
     {
-      "src": "/icon-512.svg",
+      "src": "icon-512.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "/icon-maskable.svg",
+      "src": "icon-maskable.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "maskable"

@@ -2,14 +2,14 @@ const CACHE_NAME = 'gki-calc-v1';
 
 // Assets to precache on install
 const PRECACHE_URLS = [
-  '/',
-  '/index.html',
-  '/style.css',
-  '/app.js',
-  '/app-utils.js',
-  '/manifest.json',
-  '/icon-512.svg',
-  '/icon-maskable.svg'
+  './',
+  './index.html',
+  './style.css',
+  './app.js',
+  './app-utils.js',
+  './manifest.json',
+  './icon-512.svg',
+  './icon-maskable.svg'
 ];
 
 // External CDN assets to cache on first fetch
