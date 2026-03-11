@@ -79,8 +79,18 @@ function initDOM(){
 
   if(els.calcForm) els.calcForm.addEventListener('submit', (e)=>{ e.preventDefault(); });
 
-  function formatDateInputValue(d){ const pad = n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; }
-  function setNowLocal(){ if(els.timestamp) els.timestamp.value = formatDateInputValue(new Date()); }
+  function formatDateTimeDisp(iso){
+    const d = new Date(iso);
+    if(isNaN(d.getTime())) return '';
+    const pad = n=>String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  function formatDateDisp(iso){
+    const d = new Date(iso);
+    if(isNaN(d.getTime())) return '';
+    const pad = n=>String(n).padStart(2,'0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  }
   if(els.nowBtn) els.nowBtn.addEventListener('click', setNowLocal);
   setNowLocal();
 
@@ -115,9 +125,41 @@ function initDOM(){
 
   function readFormLocal(){ return { glucose: els.glucose.value, glucose_unit: els.glucoseUnit.value, ketones: els.ketones.value, timestamp: els.timestamp.value ? new Date(els.timestamp.value).toISOString() : new Date().toISOString(), note: els.note ? els.note.value : '' }; }
 
+  // Chart.js annotation plugin (inline, lightweight) for ketosis zone backgrounds
+  const ketozonePlugin = {
+    id: 'ketozones',
+    beforeDraw(chart) {
+      const {ctx, chartArea: {left, right, top, bottom}, scales: {y}} = chart;
+      if (!y) return;
+      const zones = [
+        { min: 0,  max: 1,  color: 'rgba(168,85,247,0.12)',  label: 'Extreme' },
+        { min: 1,  max: 3,  color: 'rgba(59,130,246,0.12)',   label: 'Deep' },
+        { min: 3,  max: 6,  color: 'rgba(34,197,94,0.12)',    label: 'Nutritional' },
+        { min: 6,  max: 9,  color: 'rgba(234,179,8,0.12)',    label: 'Light' },
+        { min: 9,  max: 999, color: 'rgba(170,170,170,0.06)', label: 'None' },
+      ];
+      ctx.save();
+      for (const z of zones) {
+        const yTop = y.getPixelForValue(z.max);
+        const yBot = y.getPixelForValue(z.min);
+        const clampTop = Math.max(yTop, top);
+        const clampBot = Math.min(yBot, bottom);
+        if (clampBot <= clampTop) continue;
+        ctx.fillStyle = z.color;
+        ctx.fillRect(left, clampTop, right - left, clampBot - clampTop);
+        // Label
+        ctx.fillStyle = z.color.replace(/[\d.]+\)$/, '0.5)');
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(z.label, right - 4, clampTop + 12);
+      }
+      ctx.restore();
+    }
+  };
+
   function buildChart(data){
     if(!els.chartCtx) return;
-    if(!window.Chart) return; // avoid crash if Chart script failed to load
+    if(!window.Chart) return;
     if(chart) chart.destroy();
     
     const datasets = [];
@@ -126,10 +168,17 @@ function initDOM(){
         label:'GKI',
         data:data.map(d=>({x:new Date(d.timestamp),y:d.gki})),
         borderColor:'#fff',
-        backgroundColor:'rgba(255,255,255,0.05)',
-        tension:0.2,
+        backgroundColor:'rgba(255,255,255,0.08)',
+        tension:0.3,
+        pointRadius: 4,
+        pointBackgroundColor: '#fff',
+        borderWidth: 2,
+        fill: false,
       });
     }
+
+    // Determine y-axis max from data (at least 10 to show all zones)
+    const maxGki = data.length > 0 ? Math.max(...data.map(d => d.gki), 10) : 12;
 
     try {
       chart = new Chart(els.chartCtx,{
@@ -137,15 +186,37 @@ function initDOM(){
         data:{datasets},
         options:{
           responsive:true,
+          maintainAspectRatio:false,
           scales:{
-            x:{type:'time',time:{unit:'day'},ticks:{color:'#bbb'}},
-            y:{position:'left',title:{display:true,text:'GKI'},ticks:{color:'#bbb'}}
+            x:{
+              type:'time',
+              time:{
+                unit:'day',
+                tooltipFormat:'yyyy-MM-dd HH:mm',
+                displayFormats:{ day:'yyyy-MM-dd', hour:'HH:mm', minute:'HH:mm' }
+              },
+              ticks:{color:'#bbb', font:{size:11}}
+            },
+            y:{
+              position:'left',
+              title:{display:true,text:'GKI',color:'#bbb'},
+              ticks:{color:'#bbb', font:{size:11}},
+              min: 0,
+              max: Math.ceil(maxGki) + 1,
+              grid:{color:'rgba(255,255,255,0.05)'}
+            }
           },
           plugins:{
             legend:{display:false},
-            tooltip:{ callbacks:{ label: function(c){ return `GKI: ${c.parsed.y}`; } } }
+            tooltip:{
+              callbacks:{
+                title: function(items){ if(!items.length) return ''; const d=new Date(items[0].parsed.x); const pad=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`; },
+                label: function(c){ return `GKI: ${c.parsed.y}`; }
+              }
+            }
           }
-        }
+        },
+        plugins: [ketozonePlugin]
       });
     } catch(e) {
       console.error('Chart.js failed to initialize', e);
@@ -177,7 +248,7 @@ function initDOM(){
     for(const r of list){
       const li = document.createElement('li');
       const left = document.createElement('div');
-      left.innerHTML = `<div><strong>${r.gki}</strong> — <span class="record-meta">${new Date(r.timestamp).toLocaleString()}</span></div><div class="record-meta" style="color:#aaa">Glucose: ${r.glucose} ${r.glucose_unit} • Ketones: ${r.ketones} mmol/L</div><div style="font-size:0.9rem; margin-top:4px">${r.note||''}</div>`;
+      left.innerHTML = `<div class="record-main"><div class="record-gki">${r.gki}</div><div class="record-meta">${formatDateDisp(r.timestamp)} ${new Date(r.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12:false})}</div></div><div class="record-data">Glucose: ${r.glucose} ${r.glucose_unit} • Ketones: ${r.ketones} mmol/L</div><div style="font-size:0.9rem; margin-top:4px">${r.note||''}</div>`;
       const right = document.createElement('div');
       right.className='record-actions';
       const editBtn = document.createElement('button'); editBtn.textContent='Edit';

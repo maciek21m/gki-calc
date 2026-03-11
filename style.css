@@ -104,7 +104,7 @@ button.danger:hover{background:rgba(255,77,77,0.1)}
   padding:0;
 }
 
-#gkiChart{margin-top:1rem;margin-bottom:2rem}
+#gkiChart{margin-top:1rem;margin-bottom:2rem;max-height:320px}
 
 .history-actions{display:flex;gap:0.75rem;justify-content:center;margin-bottom:1rem}
 #records li{
