@@ -194,8 +194,8 @@ function initDOM(){
               type:'time',
               time:{
                 unit:'day',
-                tooltipFormat:'yyyy-MM-dd HH:mm',
-                displayFormats:{ day:'yyyy-MM-dd', hour:'HH:mm', minute:'HH:mm' }
+                tooltipFormat:'MMM d, HH:mm',
+                displayFormats:{ day:'MMM d', hour:'HH:mm', minute:'HH:mm' }
               },
               ticks:{color:'#bbb', font:{size:11}}
             },
