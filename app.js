@@ -289,9 +289,17 @@ function initDOM(){
     els.note.value = rec.note || '';
     els.timestamp.value = formatDateInputValue(new Date(rec.timestamp));
 
+    // Also update the formatted display if standard ISO is set
+    updateTimestampDisplay();
+
+    // Scroll back to top so user sees the form
+    window.scrollTo({top: 0, behavior: 'smooth'});
+
     if(els.calcBtn) {
       els.calcBtn.textContent = 'Save Changes';
+      els.calcBtn.removeEventListener('click', defaultSaveHandler);
       if(onSaveWrapper) els.calcBtn.removeEventListener('click', onSaveWrapper);
+
       onSaveWrapper = function(e){
         e.preventDefault();
         const f = readFormLocal();
