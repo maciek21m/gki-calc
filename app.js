@@ -91,6 +91,8 @@ function initDOM(){
     const pad = n=>String(n).padStart(2,'0');
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   }
+  function formatDateInputValue(d){ const pad = n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+  function setNowLocal(){ if(els.timestamp) els.timestamp.value = formatDateInputValue(new Date()); }
   if(els.nowBtn) els.nowBtn.addEventListener('click', setNowLocal);
   setNowLocal();
 
