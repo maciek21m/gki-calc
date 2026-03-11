@@ -148,11 +148,11 @@ function initDOM(){
       const {ctx, chartArea: {left, right, top, bottom}, scales: {y}} = chart;
       if (!y) return;
       const zones = [
-        { min: 0,  max: 1,  color: 'rgba(168,85,247,0.12)',  label: 'Extreme' },
-        { min: 1,  max: 3,  color: 'rgba(59,130,246,0.12)',   label: 'Deep' },
-        { min: 3,  max: 6,  color: 'rgba(34,197,94,0.12)',    label: 'Nutritional' },
-        { min: 6,  max: 9,  color: 'rgba(234,179,8,0.12)',    label: 'Light' },
-        { min: 9,  max: 999, color: 'rgba(170,170,170,0.06)', label: 'None' },
+        { min: 0,  max: 1,  color: 'rgba(168,85,247,0.28)',  label: 'Extreme' },
+        { min: 1,  max: 3,  color: 'rgba(59,130,246,0.28)',   label: 'Deep' },
+        { min: 3,  max: 6,  color: 'rgba(34,197,94,0.28)',    label: 'Nutritional' },
+        { min: 6,  max: 9,  color: 'rgba(234,179,8,0.28)',    label: 'Light' },
+        { min: 9,  max: 999, color: 'rgba(170,170,170,0.14)', label: 'None' },
       ];
       ctx.save();
       for (const z of zones) {
@@ -164,10 +164,11 @@ function initDOM(){
         ctx.fillStyle = z.color;
         ctx.fillRect(left, clampTop, right - left, clampBot - clampTop);
         // Label
-        ctx.fillStyle = z.color.replace(/[\d.]+\)$/, '0.5)');
-        ctx.font = '10px sans-serif';
+        // Use a contrasting label color for better readability
+        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        ctx.font = '11px sans-serif';
         ctx.textAlign = 'right';
-        ctx.fillText(z.label, right - 4, clampTop + 12);
+        ctx.fillText(z.label, right - 6, clampTop + 14);
       }
       ctx.restore();
     }
