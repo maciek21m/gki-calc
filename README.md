@@ -2,7 +2,7 @@
 
 A simple, offline-first PWA for calculating and tracking your **Glucose Ketone Index (GKI)** over time.
 
-**Live demo:** [maciek21m.github.io/gki-calc](https://maciek21m.github.io/gki-calc/)
+**Live demo:** [maciek21m.github.io/gki-calc](https://maciek21m.github.io/gki-calc/). Use a mobile browser to add it to your homescreen.
 
 ## What is GKI?
 
