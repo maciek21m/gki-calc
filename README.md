@@ -32,8 +32,7 @@ If you measure glucose in mg/dL, the app converts automatically (mg/dL / 18 = mm
 - **Duplicate detection** on CSV import
 - **Edit and delete** saved entries
 - **Installable PWA** for Android (add to home screen from Chrome)
-- **Offline support** via service worker caching
-- **Dark theme** (black background, white text)
+- **Works offline** via service worker caching
 
 ## CSV Format
 
