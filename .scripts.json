@@ -1,7 +1,0 @@
-{
-  "type": "module",
-  "scripts": {
-    "build": "vite build",
-    "test:unit": "vitest run"
-  }
-}

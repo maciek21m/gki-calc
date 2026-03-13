@@ -1,554 +1,454 @@
-import { saveRecord, loadRecords, overwriteRecords, exportCSV, mgdlToMmoll, mmollToMgdl } from './app-utils.js';
+import { saveRecord, loadRecords, overwriteRecords, exportCSV } from './app-utils.js';
 
-// Development: aggressive clear of Service Workers and Caches to fix preview staleness
-const IS_DEV = location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname.includes('shakespeare.diy') || location.hostname.includes('ngit') || location.port !== '';
+// ---------------------------------------------------------------------------
+// Service Worker management
+// ---------------------------------------------------------------------------
+const IS_DEV = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+  || location.hostname.includes('shakespeare.diy') || location.hostname.includes('ngit')
+  || location.port !== '';
+
 if (IS_DEV) {
   (async function clearStaleCaches() {
-    let reloaded = sessionStorage.getItem('dev_sw_cleared');
-    if (!reloaded) {
-      if ('serviceWorker' in navigator) {
-        try {
-          const regs = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(regs.map(r => r.unregister()));
-          console.log('[DEV] Unregistered stale service workers');
-        } catch (e) {}
-      }
-      if ('caches' in window) {
-        try {
-          const keys = await caches.keys();
-          await Promise.all(keys.map(k => caches.delete(k)));
-          console.log('[DEV] Cleared browser caches');
-        } catch (e) {}
-      }
-      sessionStorage.setItem('dev_sw_cleared', '1');
-      location.reload();
+    if (sessionStorage.getItem('dev_sw_cleared')) return;
+    if ('serviceWorker' in navigator) {
+      try {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      } catch (e) { /* ignore */ }
     }
+    if ('caches' in window) {
+      try {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      } catch (e) { /* ignore */ }
+    }
+    sessionStorage.setItem('dev_sw_cleared', '1');
+    location.reload();
   })();
 } else if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js').catch((err) => {
-    console.warn('SW registration failed:', err);
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
+// ---------------------------------------------------------------------------
+// GKI calculation
+// ---------------------------------------------------------------------------
+function computeGKI(glucoseValue, glucoseUnit, ketonesValue) {
+  const g = parseFloat(glucoseValue);
+  if (isNaN(g)) return null;
+  const gMmol = glucoseUnit === 'mgdL' ? g / 18 : g;
+  const k = parseFloat(ketonesValue);
+  if (isNaN(k) || k <= 0) return null;
+  return Number((gMmol / k).toFixed(2));
+}
+
+// Expose for console debugging
+window.AppUtils = { calculateGKI: computeGKI, saveRecord, loadRecords };
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+function debounce(fn, ms = 250) {
+  let t;
+  return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+}
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+
+function fmtDate(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+function fmtTime24(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+function fmtDateInput(d) {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+function getLevel(gki) {
+  if (gki < 1) return { text: 'Extreme Ketosis', color: '#a855f7' };
+  if (gki < 3) return { text: 'Deep Ketosis', color: '#3b82f6' };
+  if (gki < 6) return { text: 'Nutritional Ketosis', color: '#22c55e' };
+  if (gki < 9) return { text: 'Light Ketosis', color: '#eab308' };
+  return { text: 'No Ketosis', color: '#aaa' };
+}
+
+// ---------------------------------------------------------------------------
+// CSV parser (handles ; , \t delimiters and quoted fields)
+// ---------------------------------------------------------------------------
+function parseCSV(text) {
+  return text.split(/\r?\n/).filter(l => l.trim() !== '').map(line => {
+    const row = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') { if (inQ && line[i + 1] === '"') { cur += '"'; i++; } else { inQ = !inQ; } continue; }
+      if (!inQ && (ch === ',' || ch === ';' || ch === '\t')) { row.push(cur.trim()); cur = ''; continue; }
+      cur += ch;
+    }
+    row.push(cur.trim());
+    return row;
   });
 }
 
-function computeGKI_local(glucoseValue, glucoseUnit, ketonesValue){
-  const gVal = parseFloat(glucoseValue);
-  if (isNaN(gVal)) return null;
-  let glucoseMmoll = gVal;
-  if (glucoseUnit === 'mgdL') glucoseMmoll = gVal / 18;
-  const ket = parseFloat(ketonesValue);
-  if (isNaN(ket) || ket <= 0) return null;
-  const gki = glucoseMmoll / ket;
-  return Number(gki.toFixed(2));
-}
+// ---------------------------------------------------------------------------
+// Chart zone plugin
+// ---------------------------------------------------------------------------
+const ketozonePlugin = {
+  id: 'ketozones',
+  beforeDraw(chart) {
+    const { ctx, chartArea: { left, right, top, bottom }, scales: { y } } = chart;
+    if (!y) return;
+    const zones = [
+      { min: 0, max: 1, color: 'rgba(168,85,247,0.28)', label: 'Extreme' },
+      { min: 1, max: 3, color: 'rgba(59,130,246,0.28)', label: 'Deep' },
+      { min: 3, max: 6, color: 'rgba(34,197,94,0.28)', label: 'Nutritional' },
+      { min: 6, max: 9, color: 'rgba(234,179,8,0.28)', label: 'Light' },
+      { min: 9, max: 999, color: 'rgba(170,170,170,0.14)', label: 'None' },
+    ];
+    ctx.save();
+    for (const z of zones) {
+      const yT = Math.max(y.getPixelForValue(z.max), top);
+      const yB = Math.min(y.getPixelForValue(z.min), bottom);
+      if (yB <= yT) continue;
+      ctx.fillStyle = z.color;
+      ctx.fillRect(left, yT, right - left, yB - yT);
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.font = '11px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(z.label, right - 6, yT + 14);
+    }
+    ctx.restore();
+  }
+};
 
-// expose on window for debugging
-window.AppUtils = window.AppUtils || {};
-window.AppUtils.calculateGKI = computeGKI_local;
-window.AppUtils.saveRecord = saveRecord;
-window.AppUtils.loadRecords = loadRecords;
-
-function debounce(fn, ms=300){
-  let t; return (...args)=>{ clearTimeout(t); t = setTimeout(()=>fn(...args), ms); };
-}
-
+// ---------------------------------------------------------------------------
+// Main DOM initialisation
+// ---------------------------------------------------------------------------
 let chart = null;
 
-function initDOM(){
+function initApp() {
+  const $ = id => document.getElementById(id);
   const els = {
-    glucose: document.getElementById('glucose'),
-    glucoseUnit: document.getElementById('glucoseUnit'),
-    ketones: document.getElementById('ketones'),
-    timestamp: document.getElementById('timestamp'),
-    timestampDisplay: document.getElementById('timestampDisplay'),
-    nowBtn: document.getElementById('nowBtn'),
-    note: document.getElementById('note'),
-    calcBtn: document.getElementById('calcBtn'),
-    justCalc: document.getElementById('justCalc'),
-    resultBox: document.getElementById('result'),
-    recordsList: document.getElementById('records'),
-    rangeSelect: document.getElementById('rangeSelect'),
-    customWeeks: document.getElementById('customWeeks'),
-
-    exportCsv: document.getElementById('exportCsv'),
-    importCsv: document.getElementById('importCsv'),
-    importFile: document.getElementById('importFile'),
-
-    clearAll: document.getElementById('clearAll'),
-    calcForm: document.getElementById('calcForm'),
-    chartCtx: document.getElementById('gkiChart') ? document.getElementById('gkiChart').getContext('2d') : null
+    glucose: $('glucose'), glucoseUnit: $('glucoseUnit'), ketones: $('ketones'),
+    timestamp: $('timestamp'), timestampDisp: $('timestampDisplay'), nowBtn: $('nowBtn'),
+    note: $('note'), calcBtn: $('calcBtn'), justCalc: $('justCalc'), resultBox: $('result'),
+    records: $('records'), rangeSelect: $('rangeSelect'), customWeeks: $('customWeeks'),
+    exportCsv: $('exportCsv'), importCsv: $('importCsv'), importFile: $('importFile'),
+    clearAll: $('clearAll'), form: $('calcForm'),
+    chartCtx: $('gkiChart') ? $('gkiChart').getContext('2d') : null,
   };
+  if (!els.glucose) return;
 
-  if(!els.glucose) return; // silent fail if not on right page
+  // Prevent native form submit
+  if (els.form) els.form.addEventListener('submit', e => e.preventDefault());
 
-  if(els.calcForm) els.calcForm.addEventListener('submit', (e)=>{ e.preventDefault(); });
-
-  function formatDateTimeDisp(iso){
-    const d = new Date(iso);
-    if(isNaN(d.getTime())) return '';
-    const pad = n=>String(n).padStart(2,'0');
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  // --- Timestamp helpers ---
+  function setNow() {
+    if (els.timestamp) els.timestamp.value = fmtDateInput(new Date());
+    updateTimestampDisp();
   }
-  function formatDateDisp(iso){
-    const d = new Date(iso);
-    if(isNaN(d.getTime())) return '';
-    const pad = n=>String(n).padStart(2,'0');
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  function updateTimestampDisp() {
+    if (!els.timestampDisp || !els.timestamp || !els.timestamp.value) return;
+    const d = new Date(els.timestamp.value);
+    els.timestampDisp.textContent = isNaN(d) ? '' : `${fmtDate(d)} ${fmtTime24(d)}`;
   }
-  function formatDateInputValue(d){ const pad = n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; }
-  function setNowLocal(){ if(els.timestamp) { els.timestamp.value = formatDateInputValue(new Date()); } updateTimestampDisplay(); }
-  if(els.nowBtn) els.nowBtn.addEventListener('click', setNowLocal);
-  setNowLocal();
+  if (els.nowBtn) els.nowBtn.addEventListener('click', setNow);
+  if (els.timestamp) els.timestamp.addEventListener('change', updateTimestampDisp);
+  setNow();
 
-  function updateTimestampDisplay(){
-    if(!els.timestampDisplay || !els.timestamp) return;
-    const iso = els.timestamp.value;
-    if(!iso) { els.timestampDisplay.textContent = ''; return; }
-    const d = new Date(iso);
-    const pad = n=>String(n).padStart(2,'0');
-    const disp = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    els.timestampDisplay.textContent = disp;
-  }
-  // update on change
-  if(els.timestamp) els.timestamp.addEventListener('change', updateTimestampDisplay);
-
-
-  function showToast(msg,duration=2500){
-    let container = document.getElementById('toast-container');
-    if(!container) return;
+  // --- Toast ---
+  function toast(msg, ms = 2500) {
+    const c = $('toast-container');
+    if (!c) return;
     const t = document.createElement('div');
-    t.className='toast'; t.textContent=msg; container.appendChild(t);
-    setTimeout(()=>{ t.classList.add('visible'); },20);
-    setTimeout(()=>{ t.classList.remove('visible'); setTimeout(()=>container.removeChild(t),300); },duration);
+    t.className = 'toast'; t.textContent = msg; c.appendChild(t);
+    setTimeout(() => t.classList.add('visible'), 20);
+    setTimeout(() => { t.classList.remove('visible'); setTimeout(() => c.removeChild(t), 300); }, ms);
   }
 
-  function showResultLocal(gki){
-    if(!els.resultBox) return;
-    if(gki===null){ els.resultBox.textContent = 'Enter valid values (ketones must be > 0)'; return; }
-    let level='No Ketosis';
-    if(gki<1) level='Extreme Ketosis'; else if(gki<3) level='Deep Ketosis'; else if(gki<6) level='Nutritional Ketosis'; else if(gki<9) level='Light Ketosis';
-    
-    let levelColor = '#aaa';
-    if(gki<1) levelColor = '#a855f7'; // extreme
-    else if(gki<3) levelColor = '#3b82f6'; // deep
-    else if(gki<6) levelColor = '#22c55e'; // nutritional
-    else if(gki<9) levelColor = '#eab308'; // light
-    
-    // Explicit accessible formatting
+  // --- Result display ---
+  function showResult(gki) {
+    if (!els.resultBox) return;
+    if (gki === null) { els.resultBox.textContent = 'Enter glucose and ketones (ketones > 0)'; return; }
+    const lv = getLevel(gki);
     els.resultBox.innerHTML = `
-      <div style="font-size:2.5rem; font-weight:800; color:#fff; letter-spacing:-0.03em" aria-live="polite">GKI: ${gki}</div>
-      <div style="margin-top:0.5rem; font-size:1.15rem; font-weight:500; color:${levelColor}">${level}</div>
-    `;
-    setTimeout(() => showToast(`GKI: ${gki}`), 10);
+      <div style="font-size:2.5rem;font-weight:800;color:#fff;letter-spacing:-0.03em" aria-live="polite">GKI: ${gki}</div>
+      <div style="margin-top:0.4rem;font-size:1.1rem;font-weight:500;color:${lv.color}">${lv.text}</div>`;
+    setTimeout(() => toast(`GKI: ${gki}`), 10);
   }
 
-  function readFormLocal(){ return { glucose: els.glucose.value, glucose_unit: els.glucoseUnit.value, ketones: els.ketones.value, timestamp: els.timestamp.value ? new Date(els.timestamp.value).toISOString() : new Date().toISOString(), note: els.note ? els.note.value : '' }; }
+  // --- Form reading ---
+  function readForm() {
+    return {
+      glucose: els.glucose.value,
+      glucose_unit: els.glucoseUnit.value,
+      ketones: els.ketones.value,
+      timestamp: els.timestamp.value ? new Date(els.timestamp.value).toISOString() : new Date().toISOString(),
+      note: els.note ? els.note.value : '',
+    };
+  }
 
-  // Chart.js annotation plugin (inline, lightweight) for ketosis zone backgrounds
-  const ketozonePlugin = {
-    id: 'ketozones',
-    beforeDraw(chart) {
-      const {ctx, chartArea: {left, right, top, bottom}, scales: {y}} = chart;
-      if (!y) return;
-      const zones = [
-        { min: 0,  max: 1,  color: 'rgba(168,85,247,0.28)',  label: 'Extreme' },
-        { min: 1,  max: 3,  color: 'rgba(59,130,246,0.28)',   label: 'Deep' },
-        { min: 3,  max: 6,  color: 'rgba(34,197,94,0.28)',    label: 'Nutritional' },
-        { min: 6,  max: 9,  color: 'rgba(234,179,8,0.28)',    label: 'Light' },
-        { min: 9,  max: 999, color: 'rgba(170,170,170,0.14)', label: 'None' },
-      ];
-      ctx.save();
-      for (const z of zones) {
-        const yTop = y.getPixelForValue(z.max);
-        const yBot = y.getPixelForValue(z.min);
-        const clampTop = Math.max(yTop, top);
-        const clampBot = Math.min(yBot, bottom);
-        if (clampBot <= clampTop) continue;
-        ctx.fillStyle = z.color;
-        ctx.fillRect(left, clampTop, right - left, clampBot - clampTop);
-        // Label
-        // Use a contrasting label color for better readability
-        ctx.fillStyle = 'rgba(255,255,255,0.85)';
-        ctx.font = '11px sans-serif';
-        ctx.textAlign = 'right';
-        ctx.fillText(z.label, right - 6, clampTop + 14);
-      }
-      ctx.restore();
+  // --- Records (sorted newest-first) ---
+  function sorted() { return loadRecords().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); }
+
+  // --- Chart ---
+  function filteredForChart() {
+    const list = sorted();
+    const range = els.rangeSelect ? els.rangeSelect.value : 'last7entries';
+    if (range === 'last7entries') return list.slice(0, 7);
+    if (range === 'all') return list;
+    const cutoff = new Date();
+    if (range === '7') cutoff.setDate(cutoff.getDate() - 7);
+    else if (range === '30') cutoff.setDate(cutoff.getDate() - 30);
+    else if (range === 'custom' && els.customWeeks) {
+      cutoff.setDate(cutoff.getDate() - (parseInt(els.customWeeks.value) || 1) * 7);
     }
-  };
+    return list.filter(r => new Date(r.timestamp) >= cutoff);
+  }
 
-  function buildChart(data){
-    if(!els.chartCtx) return;
-    if(!window.Chart) return;
-    if(chart) chart.destroy();
-    
-    const datasets = [];
-    // Always show GKI series (checkboxes removed)
-    {
-      datasets.push({
-        label:'GKI',
-        data:data.map(d=>({x:new Date(d.timestamp),y:d.gki})),
-        borderColor:'#fff',
-        backgroundColor:'rgba(255,255,255,0.08)',
-        tension:0.3,
-        pointRadius: 4,
-        pointBackgroundColor: '#fff',
-        borderWidth: 2,
-        fill: false,
-      });
-    }
-
-    // Determine y-axis max from data (at least 10 to show all zones)
-    const maxGki = data.length > 0 ? Math.max(...data.map(d => d.gki), 10) : 12;
-
+  function buildChart(data) {
+    if (!els.chartCtx || !window.Chart) return;
+    if (chart) chart.destroy();
+    const maxGki = data.length ? Math.max(...data.map(d => d.gki), 10) : 12;
     try {
-      chart = new Chart(els.chartCtx,{
-        type:'line',
-        data:{datasets},
-        options:{
-          responsive:true,
-          maintainAspectRatio:false,
-          scales:{
-            x:{
-              type:'time',
-              time:{
-                unit:'day',
-                tooltipFormat:'MMM d, HH:mm',
-                displayFormats:{ day:'MMM d', hour:'HH:mm', minute:'HH:mm' }
-              },
-              ticks:{color:'#bbb', font:{size:11}}
-            },
-            y:{
-              position:'left',
-              title:{display:true,text:'GKI',color:'#bbb'},
-              ticks:{color:'#bbb', font:{size:11}},
-              min: 0,
-              max: Math.ceil(maxGki) + 1,
-              grid:{color:'rgba(255,255,255,0.05)'}
-            }
+      chart = new Chart(els.chartCtx, {
+        type: 'line',
+        data: {
+          datasets: [{
+            label: 'GKI',
+            data: data.map(d => ({ x: new Date(d.timestamp), y: d.gki })),
+            borderColor: '#fff', backgroundColor: 'rgba(255,255,255,0.08)',
+            tension: 0.3, pointRadius: 4, pointBackgroundColor: '#fff', borderWidth: 2, fill: false,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          scales: {
+            x: { type: 'time', time: { unit: 'day', tooltipFormat: 'MMM d, HH:mm', displayFormats: { day: 'MMM d', hour: 'HH:mm', minute: 'HH:mm' } }, ticks: { color: '#bbb', font: { size: 11 } } },
+            y: { min: 0, max: Math.ceil(maxGki) + 1, title: { display: true, text: 'GKI', color: '#bbb' }, ticks: { color: '#bbb', font: { size: 11 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
           },
-          plugins:{
-            legend:{display:false},
-            tooltip:{
-              callbacks:{
-                title: function(items){ if(!items.length) return ''; const d=new Date(items[0].parsed.x); const pad=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`; },
-                label: function(c){ return `GKI: ${c.parsed.y}`; }
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                title(items) { if (!items.length) return ''; const d = new Date(items[0].parsed.x); return `${fmtDate(d)} ${fmtTime24(d)}`; },
+                label(c) { return `GKI: ${c.parsed.y}`; },
               }
             }
           }
         },
-        plugins: [ketozonePlugin]
+        plugins: [ketozonePlugin],
       });
-    } catch(e) {
-      console.error('Chart.js failed to initialize', e);
-    }
+    } catch (e) { console.error('Chart init failed', e); }
   }
 
-  // Sort records by date (newest first)
-  function getSortedRecords(){
-    return loadRecords().sort((a,b)=> new Date(b.timestamp) - new Date(a.timestamp));
-  }
+  function updateChart() { buildChart(filteredForChart()); }
 
-  function getFilteredRecords(){
-    let list = getSortedRecords();
-    const range = els.rangeSelect ? els.rangeSelect.value : 'last7entries';
-    if(range === 'last7entries') return list.slice(0, 7);
-    if(range === 'all') return list;
-    let cutoff = new Date();
-    if(range === '7') cutoff.setDate(cutoff.getDate()-7);
-    else if(range === '30') cutoff.setDate(cutoff.getDate()-30);
-    else if(range === 'custom' && els.customWeeks){
-      const weeks = parseInt(els.customWeeks.value) || 1;
-      cutoff.setDate(cutoff.getDate() - weeks*7);
-    }
-    return list.filter(r=>new Date(r.timestamp) >= cutoff);
-  }
+  // --- Record list (show 3, expand/collapse) ---
+  let expanded = false;
+  const VISIBLE = 3;
 
-  function updateChart(){
-    buildChart(getFilteredRecords());
-  }
+  function renderRecords() {
+    if (!els.records) return;
+    const all = sorted();
+    els.records.innerHTML = '';
+    const show = expanded ? all : all.slice(0, VISIBLE);
 
-  let recordsExpanded = false;
-  const VISIBLE_COUNT = 3;
-
-  function renderRecords(){
-    if(!els.recordsList) return;
-    const list = getSortedRecords();
-    els.recordsList.innerHTML='';
-
-    const visibleList = recordsExpanded ? list : list.slice(0, VISIBLE_COUNT);
-
-    for(const r of visibleList){
+    for (const r of show) {
       const li = document.createElement('li');
       const left = document.createElement('div');
       left.className = 'record-left';
-      const dateStr = formatDateDisp(r.timestamp);
-      const timeStr = new Date(r.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12:false});
-      const valuesStr = `${timeStr} • ${r.glucose} ${r.glucose_unit} • ${r.ketones} mmol/L`;
-      let topHtml = `<div class="record-top"><div class="record-gki">${r.gki}</div><div class="record-info">${dateStr} • ${valuesStr}</div></div>`;
-      if(r.note && String(r.note).trim() !== ''){
-        topHtml += `<div class="record-note">${r.note}</div>`;
-      }
-      left.innerHTML = topHtml;
+      let html = `<div class="record-top"><div class="record-gki">${r.gki}</div><div class="record-info">${fmtDate(r.timestamp)} • ${fmtTime24(r.timestamp)} • ${r.glucose} ${r.glucose_unit} • ${r.ketones} mmol/L</div></div>`;
+      if (r.note && r.note.trim()) html += `<div class="record-note">${r.note}</div>`;
+      left.innerHTML = html;
 
       const right = document.createElement('div');
-      right.className='record-actions';
-      const editBtn = document.createElement('button'); editBtn.textContent='Edit'; editBtn.className='small';
-      const delBtn = document.createElement('button'); delBtn.textContent='Del'; delBtn.className='small danger';
-      editBtn.addEventListener('click', ()=>editRecord(r.id));
-      delBtn.addEventListener('click', ()=>deleteRecord(r.id));
-      right.appendChild(editBtn); right.appendChild(delBtn);
-      li.appendChild(left); li.appendChild(right);
-      els.recordsList.appendChild(li);
+      right.className = 'record-actions';
+      const eBtn = document.createElement('button'); eBtn.textContent = 'Edit'; eBtn.className = 'small';
+      const dBtn = document.createElement('button'); dBtn.textContent = 'Del'; dBtn.className = 'small danger';
+      eBtn.addEventListener('click', () => editRecord(r.id));
+      dBtn.addEventListener('click', () => deleteRecord(r.id));
+      right.append(eBtn, dBtn);
+      li.append(left, right);
+      els.records.appendChild(li);
     }
 
-    // Show more / Show less toggle
-    if(list.length > VISIBLE_COUNT){
-      const toggle = document.createElement('div');
-      toggle.className = 'show-more-link';
-      if(recordsExpanded){
-        toggle.textContent = 'Show less';
-        toggle.addEventListener('click', ()=>{ recordsExpanded = false; renderRecords(); });
-      } else {
-        const remaining = list.length - VISIBLE_COUNT;
-        toggle.textContent = `Show ${remaining} more entries`;
-        toggle.addEventListener('click', ()=>{ recordsExpanded = true; renderRecords(); });
-      }
-      els.recordsList.appendChild(toggle);
+    if (all.length > VISIBLE) {
+      const tog = document.createElement('div');
+      tog.className = 'show-more-link';
+      tog.textContent = expanded ? 'Show less' : `Show ${all.length - VISIBLE} more entries`;
+      tog.addEventListener('click', () => { expanded = !expanded; renderRecords(); });
+      els.records.appendChild(tog);
     }
   }
 
-  let onSaveWrapper = null;
-  function editRecord(id){
+  // --- Edit record ---
+  let editHandler = null;
+  function editRecord(id) {
     const list = loadRecords();
-    const rec = list.find(x=>x.id===id);
-    if(!rec) return;
+    const rec = list.find(x => x.id === id);
+    if (!rec) return;
     els.glucose.value = rec.glucose;
     els.glucoseUnit.value = rec.glucose_unit;
     els.ketones.value = rec.ketones;
-    els.note.value = rec.note || '';
-    els.timestamp.value = formatDateInputValue(new Date(rec.timestamp));
+    if (els.note) els.note.value = rec.note || '';
+    if (els.timestamp) els.timestamp.value = fmtDateInput(new Date(rec.timestamp));
+    updateTimestampDisp();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    // Also update the formatted display if standard ISO is set
-    updateTimestampDisplay();
-
-    // Scroll back to top so user sees the form
-    window.scrollTo({top: 0, behavior: 'smooth'});
-
-    if(els.calcBtn) {
+    if (els.calcBtn) {
       els.calcBtn.textContent = 'Save Changes';
-      els.calcBtn.removeEventListener('click', defaultSaveHandler);
-      if(onSaveWrapper) els.calcBtn.removeEventListener('click', onSaveWrapper);
-
-      onSaveWrapper = function(e){
+      els.calcBtn.removeEventListener('click', saveHandler);
+      if (editHandler) els.calcBtn.removeEventListener('click', editHandler);
+      editHandler = function (e) {
         e.preventDefault();
-        const f = readFormLocal();
-        const gki = computeGKI_local(f.glucose, f.glucose_unit, f.ketones);
-        if(gki===null){ alert('Invalid values'); return; }
-        showResultLocal(gki);
-        rec.glucose = f.glucose; rec.glucose_unit = f.glucose_unit; rec.ketones = f.ketones; rec.gki = gki; rec.note = f.note; rec.timestamp = f.timestamp;
+        const f = readForm();
+        const gki = computeGKI(f.glucose, f.glucose_unit, f.ketones);
+        if (gki === null) { alert('Invalid values'); return; }
+        showResult(gki);
+        Object.assign(rec, { glucose: f.glucose, glucose_unit: f.glucose_unit, ketones: f.ketones, gki, note: f.note, timestamp: f.timestamp });
         overwriteRecords(list);
         renderRecords(); updateChart();
-        els.calcBtn.removeEventListener('click', onSaveWrapper);
-        els.calcBtn.addEventListener('click', defaultSaveHandler);
+        els.calcBtn.removeEventListener('click', editHandler);
+        els.calcBtn.addEventListener('click', saveHandler);
         els.calcBtn.textContent = 'Calculate & Save';
-        onSaveWrapper = null;
-        showToast('Changes saved');
+        editHandler = null;
+        toast('Changes saved');
       };
-      els.calcBtn.addEventListener('click', onSaveWrapper);
+      els.calcBtn.addEventListener('click', editHandler);
     }
   }
 
-  function deleteRecord(id){
-    if(!confirm('Delete this record?')) return;
-    overwriteRecords(loadRecords().filter(x=>x.id!==id));
+  function deleteRecord(id) {
+    if (!confirm('Delete this record?')) return;
+    overwriteRecords(loadRecords().filter(x => x.id !== id));
     renderRecords(); updateChart();
   }
 
-  const defaultSaveHandler = (e)=>{
-    if(e) e.preventDefault();
-    const f=readFormLocal(); const gki = computeGKI_local(f.glucose, f.glucose_unit, f.ketones);
-    showResultLocal(gki);
-    if(gki!==null){
-      saveRecord({ id:'r_'+Date.now(), glucose:f.glucose, glucose_unit:f.glucose_unit, ketones:f.ketones, gki, note:f.note, timestamp:f.timestamp });
-      renderRecords(); updateChart(); showToast('Saved');
+  // --- Save handler ---
+  const saveHandler = (e) => {
+    if (e) e.preventDefault();
+    const f = readForm();
+    const gki = computeGKI(f.glucose, f.glucose_unit, f.ketones);
+    showResult(gki);
+    if (gki !== null) {
+      saveRecord({ id: 'r_' + Date.now(), glucose: f.glucose, glucose_unit: f.glucose_unit, ketones: f.ketones, gki, note: f.note, timestamp: f.timestamp });
+      renderRecords(); updateChart(); toast('Saved');
     }
   };
 
-  if(els.calcBtn) els.calcBtn.addEventListener('click', defaultSaveHandler);
-  if(els.justCalc) els.justCalc.addEventListener('click', ()=>{
-     const f = readFormLocal();
-     showResultLocal(computeGKI_local(f.glucose, f.glucose_unit, f.ketones));
+  if (els.calcBtn) els.calcBtn.addEventListener('click', saveHandler);
+  if (els.justCalc) els.justCalc.addEventListener('click', () => {
+    const f = readForm();
+    showResult(computeGKI(f.glucose, f.glucose_unit, f.ketones));
   });
 
-  const liveUpdate = debounce(()=>{
-    const f = readFormLocal();
-    showResultLocal(computeGKI_local(f.glucose, f.glucose_unit, f.ketones));
+  // --- Live update on input ---
+  const live = debounce(() => {
+    const f = readForm();
+    showResult(computeGKI(f.glucose, f.glucose_unit, f.ketones));
   });
-  els.glucose.addEventListener('input', liveUpdate);
-  if(els.glucoseUnit) els.glucoseUnit.addEventListener('change', liveUpdate);
-  els.ketones.addEventListener('input', liveUpdate);
+  els.glucose.addEventListener('input', live);
+  if (els.glucoseUnit) els.glucoseUnit.addEventListener('change', live);
+  els.ketones.addEventListener('input', live);
 
-  // CSV parser function (fallback & local implementation)
-  function parseCSV_local(text){
-    const lines = text.split(/\r?\n/).filter(l=>l.trim()!=='');
-    return lines.map(line=>{
-      const row = [];
-      let cur = '';
-      let inQuote = false;
-      for(let i=0;i<line.length;i++){
-        const ch = line[i];
-        if(ch === '"'){
-          if(inQuote && line[i+1] === '"') { cur += '"'; i++; continue; }
-          inQuote = !inQuote; continue;
-        }
-        if(ch === ',' && !inQuote){ row.push(cur.trim()); cur=''; continue; }
-        if(ch === ';' && !inQuote){ row.push(cur.trim()); cur=''; continue; }
-        if(ch === '\t' && !inQuote){ row.push(cur.trim()); cur=''; continue; }
-        cur += ch;
-      }
-      row.push(cur.trim());
-      return row;
-    });
-  }
-  // expose on window for other code
-  window.parseCSV = parseCSV_local;
-
-  if(els.rangeSelect) els.rangeSelect.addEventListener('change', ()=>{
-    if(els.customWeeks) els.customWeeks.style.display = els.rangeSelect.value === 'custom' ? 'inline-block' : 'none';
+  // --- Chart range controls ---
+  if (els.rangeSelect) els.rangeSelect.addEventListener('change', () => {
+    if (els.customWeeks) els.customWeeks.style.display = els.rangeSelect.value === 'custom' ? 'inline-block' : 'none';
     updateChart();
   });
-  if(els.customWeeks) els.customWeeks.addEventListener('input', updateChart);
+  if (els.customWeeks) els.customWeeks.addEventListener('input', updateChart);
 
-
-  if(els.exportCsv) els.exportCsv.addEventListener('click', ()=>{ 
-    const blob = new Blob([exportCSV(loadRecords())],{type:'text/csv'}); 
-    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download='gki-records.csv'; a.click(); URL.revokeObjectURL(url); 
+  // --- Export CSV ---
+  if (els.exportCsv) els.exportCsv.addEventListener('click', () => {
+    const blob = new Blob([exportCSV(loadRecords())], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'gki-records.csv'; a.click();
+    URL.revokeObjectURL(url);
   });
 
-  // Import CSV handling
-  if(els.importCsv && els.importFile){
-    els.importCsv.addEventListener('click', ()=>{ console.log('[IMPORT] importCsv clicked'); els.importFile.click(); });
-    els.importFile.addEventListener('change', async (e)=>{
-      console.log('[IMPORT] file input change', e);
+  // --- Import CSV ---
+  if (els.importCsv && els.importFile) {
+    els.importCsv.addEventListener('click', () => els.importFile.click());
+    els.importFile.addEventListener('change', async (e) => {
       const file = e.target.files && e.target.files[0];
-      if(!file){ console.log('[IMPORT] no file selected'); return; }
-      try{
-        console.log('[IMPORT] reading file', file.name, file.size);
+      if (!file) return;
+      try {
         const text = await file.text();
-        console.log('[IMPORT] file text length', text.length);
-        // Support common delimiters: detect comma or semicolon (or tab)
-        // Enforce semicolon delimiter for both import and export as requested
-        const delimiter = (text.indexOf(';') !== -1) ? ';' : (text.indexOf(',') !== -1 ? ',' : (text.indexOf('\t') !== -1 ? '\t' : ';'));
-        const parsed = window.parseCSV ? window.parseCSV(text) : (text.split(/\r?\n/).map(l=>l.split(delimiter)));
+        const parsed = parseCSV(text);
 
-        // Normalize header (lowercase, trim)
-        // strip BOM if present
-        if(parsed[0] && parsed[0][0] && parsed[0][0].startsWith('\uFEFF')){
-          parsed[0][0] = parsed[0][0].replace('\uFEFF','');
+        // Strip BOM
+        if (parsed[0] && parsed[0][0] && parsed[0][0].startsWith('\uFEFF')) {
+          parsed[0][0] = parsed[0][0].replace('\uFEFF', '');
         }
-        const header = parsed[0].map(h=>h.toString().toLowerCase().trim());
-        const idx = (name)=> header.indexOf(name);
-        const date_i = idx('date');
-        const time_i = idx('time');
-        const tz_i = idx('timezone');
-        const g_i = idx('glucose');
-        const gu_i = idx('glucose_unit')!==-1 ? idx('glucose_unit') : idx('glucose unit');
-        const k_i = idx('ketones');
-        const gki_i = idx('gki');
-        const note_i = idx('note');
 
-        const rows = parsed.slice(1).filter(r=>r && r.length>0 && r.join('').trim() !== '').map(r=>r.map(c=>c==null? '': String(c)));
-        const records = rows.map(r=>{
-          // Handle new date/time/timezone format
-          let timestamp = new Date().toISOString();
-          if(date_i!==-1 && time_i!==-1){
-            const datePart = r[date_i];
-            const timePart = r[time_i];
-            // try to assemble ISO string (assume timezone provided or default to CET)
-            if(datePart && timePart){
-              try{
-                // Normalize date and time parts and construct a local Date
-                const dateMatch = /^\s*(\d{4})-(\d{1,2})-(\d{1,2})\s*$/.exec(datePart);
-                const timeMatch = /^(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/.exec(timePart.trim());
-                if(dateMatch && timeMatch){
-                  const year = parseInt(dateMatch[1],10);
-                  const month = parseInt(dateMatch[2],10);
-                  const day = parseInt(dateMatch[3],10);
-                  const hour = parseInt(timeMatch[1],10);
-                  const minute = parseInt(timeMatch[2],10);
-                  const second = parseInt(timeMatch[3]||'0',10);
+        const hdr = parsed[0].map(h => h.toLowerCase().trim());
+        const col = name => hdr.indexOf(name);
+        const date_i = col('date'), time_i = col('time'), tz_i = col('timezone');
+        const g_i = col('glucose'), gu_i = col('glucose_unit') !== -1 ? col('glucose_unit') : col('glucose unit');
+        const k_i = col('ketones'), gki_i = col('gki'), note_i = col('note');
 
-                  // Create a local Date (not ISO string with timezone suffix) to avoid parsing differences
-                  const localDate = new Date(year, month-1, day, hour, minute, second);
-                  if (!isNaN(localDate.getTime())){
-                    timestamp = localDate.toISOString();
-                  } else {
-                    throw new Error('Invalid localDate');
-                  }
-                } else {
-                  // Fallback to generic parse
-                  const tz = (tz_i!==-1 && r[tz_i]) ? r[tz_i] : 'CET';
-                  timestamp = new Date(`${datePart}T${timePart}`).toISOString();
-                }
-              }catch(err){
-                console.warn('Failed to parse date/time for row:', datePart, timePart, err);
-                // leave timestamp as now if parsing fails
-                timestamp = new Date().toISOString();
+        const rows = parsed.slice(1).filter(r => r && r.join('').trim() !== '').map(r => r.map(c => c == null ? '' : String(c)));
+        const records = rows.map(r => {
+          let ts = new Date().toISOString();
+          if (date_i !== -1 && time_i !== -1 && r[date_i] && r[time_i]) {
+            try {
+              const dm = /^\s*(\d{4})-(\d{1,2})-(\d{1,2})\s*$/.exec(r[date_i]);
+              const tm = /^(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/.exec(r[time_i].trim());
+              if (dm && tm) {
+                const d = new Date(+dm[1], +dm[2] - 1, +dm[3], +tm[1], +tm[2], +(tm[3] || 0));
+                if (!isNaN(d)) ts = d.toISOString();
               }
-            }
-          } else if(idx('timestamp')!==-1){
-            timestamp = r[idx('timestamp')] || timestamp;
+            } catch (err) { /* use default */ }
+          } else if (col('timestamp') !== -1) {
+            ts = r[col('timestamp')] || ts;
           }
 
-          const glucoseRaw = r[g_i] || '';
-          const glucose_unit = (gu_i!==-1 && r[gu_i]) ? r[gu_i] : (glucoseRaw && glucoseRaw.toString().indexOf('.')!==-1 ? 'mmolL' : 'mgdL');
-          const glucose = glucoseRaw;
+          const glucose = r[g_i] || '';
+          const glucose_unit = (gu_i !== -1 && r[gu_i]) ? r[gu_i] : (glucose.includes('.') ? 'mmolL' : 'mgdL');
           const ketones = r[k_i] || '';
-          const gki_val = (gki_i!==-1 && r[gki_i] !== undefined && r[gki_i].trim() !== '') ? parseFloat(r[gki_i]) : null;
+          const gkiRaw = (gki_i !== -1 && r[gki_i] !== undefined && r[gki_i].trim() !== '') ? parseFloat(r[gki_i]) : null;
+          const gki = gkiRaw !== null ? gkiRaw : (glucose && ketones ? computeGKI(glucose, glucose_unit, ketones) : null);
 
-          // If gki is empty, compute it on import
-          const gki = gki_val !== null ? gki_val : (glucose && ketones ? computeGKI_local(glucose, glucose_unit, ketones) : null);
-          return {
-            timestamp: timestamp,
-            glucose: glucose,
-            glucose_unit: glucose_unit || 'mgdL',
-            ketones: ketones,
-            gki: gki,
-            note: note_i!==-1 ? (r[note_i]||'') : ''
-          };
-        }).filter(r=>r.gki !== null);
+          return { timestamp: ts, glucose, glucose_unit: glucose_unit || 'mgdL', ketones, gki, note: note_i !== -1 ? (r[note_i] || '') : '' };
+        }).filter(r => r.gki !== null);
 
-        // Merge and dedupe by timestamp+glucose+ketones (avoid exact duplicates)
+        // Merge + dedupe
         const existing = loadRecords();
-        const combined = [...records, ...existing];
         const seen = new Set();
         const unique = [];
-        for(const rec of combined){
+        for (const rec of [...records, ...existing]) {
           const key = `${rec.timestamp}||${rec.glucose}||${rec.ketones}`;
-          if(seen.has(key)) continue;
+          if (seen.has(key)) continue;
           seen.add(key);
-          unique.push({ ...rec, id:'r_'+Date.now()+Math.random().toString(36).slice(2) });
+          unique.push({ ...rec, id: rec.id || ('r_' + Date.now() + Math.random().toString(36).slice(2)) });
         }
-
         overwriteRecords(unique);
-        renderRecords();
-        updateChart();
-        showToast('Imported CSV successfully');
-      }catch(err){
+        renderRecords(); updateChart();
+        toast(`Imported ${records.length} entries`);
+      } catch (err) {
         console.error(err); alert('Failed to import CSV');
-      } finally{
+      } finally {
         els.importFile.value = '';
       }
     });
   }
-  
 
+  // --- Clear all ---
+  if (els.clearAll) els.clearAll.addEventListener('click', () => {
+    if (confirm('Clear all history?')) { overwriteRecords([]); renderRecords(); updateChart(); }
+  });
 
-
-  if(els.clearAll) els.clearAll.addEventListener('click', ()=>{ if(confirm('Clear all history?')){ overwriteRecords([]); renderRecords(); updateChart(); } });
-
+  // --- Initial render ---
   renderRecords();
   updateChart();
 }
 
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initDOM); else initDOM();
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initApp);
+else initApp();
