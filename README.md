@@ -99,7 +99,7 @@ The app uses semantic versioning (x.y.z). The current version is displayed in th
 
 ## License
 
-MIT
+Creative Commons Zero 1.0 Universal
 
 ---
 
