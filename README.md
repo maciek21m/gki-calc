@@ -94,7 +94,10 @@ scripts/            Build helper scripts
 
 ## Versioning
 
-The app uses semantic versioning (x.y.z). The current version is displayed in the app subtitle. Version is tracked in `package.json` and reflected in `index.html`.
+The app uses semantic versioning (x.y.z). The current version is displayed in the app subtitle.
+
+## ⚡ Zap me if you like it: 
+maciek@minibits.cash
 
 ## License
 
